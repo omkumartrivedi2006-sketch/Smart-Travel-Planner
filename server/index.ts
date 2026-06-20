@@ -48,7 +48,28 @@ async function startServer() {
 
   // 2. Security & Utility Middlewares
   app.use(helmet({ contentSecurityPolicy: false })); // Let CSP be false so it doesn't conflict with Vite client assets in development
-  app.use(cors({ origin: true, credentials: true }));
+  
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+    : ["http://localhost:3000", "http://127.0.0.1:3000"];
+
+  const corsOptions = {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (like mobile apps, curl, postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS block: Request from disallowed origin: ${origin}`);
+        callback(null, false);
+      }
+    },
+    credentials: true,
+    optionsSuccessStatus: 200,
+  };
+  app.use(cors(corsOptions));
+
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
