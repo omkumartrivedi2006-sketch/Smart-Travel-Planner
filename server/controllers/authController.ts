@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { User } from "../models/User";
+import { AuthenticatedRequest } from "../middleware/authMiddleware";
 import {
   BadRequestError,
   UnauthorizedError,
@@ -313,6 +314,51 @@ export async function resetPassword(
     res.status(200).json({
       status: "success",
       message: "Password reset successful.",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update User Profile
+ * PUT /api/auth/profile
+ */
+export async function updateProfile(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user) {
+      throw new UnauthorizedError("You are not logged in.");
+    }
+
+    const { name, email, password } = req.body;
+    const user = authReq.user;
+
+    if (name) user.name = name;
+    if (email) {
+      if (email !== user.email) {
+        const existing = await User.findOne({ email });
+        if (existing) {
+          throw new BadRequestError("Email is already in use");
+        }
+        user.email = email;
+      }
+    }
+    if (password) user.password = password;
+
+    await user.save();
+
+    logger.info(`User profile updated successfully: ${user.email}`);
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        user: getCleanUser(user),
+      },
     });
   } catch (error) {
     next(error);
