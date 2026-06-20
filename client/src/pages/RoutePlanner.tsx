@@ -2,11 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { Map, Navigation, Clock, Zap, MapPin } from "lucide-react";
+import { Map, Navigation, Clock, Zap, MapPin, Sun, Moon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { MapView } from "@/components/Map";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface RouteInfo {
   name: string;
@@ -19,6 +20,7 @@ interface RouteInfo {
 export default function RoutePlanner() {
   const [, navigate] = useLocation();
   const mapRef = useRef<google.maps.Map | null>(null);
+  const { theme, toggleTheme } = useTheme();
 
   // Input states
   const [startLocation, setStartLocation] = useState("Jaipur");
@@ -171,17 +173,30 @@ export default function RoutePlanner() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-600 mb-4">
-            ← Back to Home
-          </Button>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <Map className="w-8 h-8 text-red-600" />
-            Route Planner
-          </h1>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground mb-2 flex items-center gap-1">
+              ← Back to Home
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <Map className="w-8 h-8 text-red-600" />
+              Route Planner
+            </h1>
+          </div>
+          {toggleTheme && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 
@@ -189,12 +204,12 @@ export default function RoutePlanner() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Input Sidebar */}
           <div className="lg:col-span-1">
-            <Card className="border-0 shadow-lg p-6 bg-white">
-              <h3 className="font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3">Plan Your Route</h3>
+            <Card className="border-0 shadow-lg p-6 bg-card text-card-foreground">
+              <h3 className="font-bold text-foreground mb-6 border-b border-border pb-3">Plan Your Route</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Start Location</label>
+                  <label className="block text-sm font-semibold text-foreground/80 mb-2">Start Location</label>
                   <Input
                     placeholder="Enter start location"
                     value={startLocation}
@@ -203,7 +218,7 @@ export default function RoutePlanner() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">End Location</label>
+                  <label className="block text-sm font-semibold text-foreground/80 mb-2">End Location</label>
                   <Input
                     placeholder="Enter destination"
                     value={endLocation}
@@ -212,14 +227,14 @@ export default function RoutePlanner() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Transport Mode</label>
+                  <label className="block text-sm font-semibold text-foreground/80 mb-2">Transport Mode</label>
                   <select
                     value={transitMode}
                     onChange={(e) => {
                       setTransitMode(e.target.value);
                       setActiveRoute(prev => ({ ...prev, name: "Fastest Route" }));
                     }}
-                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
+                    className="w-full border border-border bg-background rounded px-3 py-2 text-foreground focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
                   >
                     <option>Driving</option>
                     <option>Walking</option>
@@ -232,19 +247,19 @@ export default function RoutePlanner() {
                   Get Directions
                 </Button>
 
-                <div className="pt-4 border-t border-slate-200">
-                  <h4 className="font-semibold text-slate-900 mb-3">Quick Actions</h4>
+                <div className="pt-4 border-t border-border">
+                  <h4 className="font-semibold text-foreground mb-3">Quick Actions</h4>
                   <div className="space-y-2">
                     <Button
                       variant="outline"
-                      className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start"
+                      className="w-full border-border text-foreground hover:bg-muted justify-start"
                       onClick={handleSaveRoute}
                     >
                       Save Route
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start"
+                      className="w-full border-border text-foreground hover:bg-muted justify-start"
                       onClick={() => navigate("/chat-assistant")}
                     >
                       Optimize Route
@@ -258,7 +273,7 @@ export default function RoutePlanner() {
           {/* Map and Details */}
           <div className="lg:col-span-3">
             {/* Real Interactive Map View */}
-            <Card className="border-0 shadow-lg overflow-hidden mb-8 h-96 relative bg-slate-100">
+            <Card className="border-0 shadow-lg overflow-hidden mb-8 h-96 relative bg-muted">
               <MapView
                 initialCenter={center}
                 initialZoom={12}
@@ -267,42 +282,42 @@ export default function RoutePlanner() {
                 }}
                 className="w-full h-full"
               />
-              <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur shadow px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 z-10">
+              <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur shadow px-3 py-1.5 rounded-lg border border-border flex items-center gap-1.5 z-10 text-foreground">
                 <MapPin className="w-4 h-4 text-red-600" />
-                <span className="text-xs font-bold text-slate-800">{endLocation || "Map Center"} View</span>
+                <span className="text-xs font-bold">{endLocation || "Map Center"} View</span>
               </div>
             </Card>
 
             {/* Route Details */}
             <div className="grid grid-cols-3 gap-4 mb-8 text-center">
-              <Card className="border-0 shadow-md p-6 bg-white">
+              <Card className="border-0 shadow-md p-6 bg-card text-card-foreground">
                 <Navigation className="w-8 h-8 text-red-600 mx-auto mb-2" />
-                <p className="text-sm text-slate-600 mb-1">Distance</p>
-                <p className="text-2xl font-bold text-slate-900">{activeRoute.distance}</p>
+                <p className="text-sm text-muted-foreground mb-1">Distance</p>
+                <p className="text-2xl font-bold text-foreground">{activeRoute.distance}</p>
               </Card>
-              <Card className="border-0 shadow-md p-6 bg-white">
+              <Card className="border-0 shadow-md p-6 bg-card text-card-foreground">
                 <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                <p className="text-sm text-slate-600 mb-1">Duration</p>
-                <p className="text-2xl font-bold text-slate-900">{activeRoute.time}</p>
+                <p className="text-sm text-muted-foreground mb-1">Duration</p>
+                <p className="text-2xl font-bold text-foreground">{activeRoute.time}</p>
               </Card>
-              <Card className="border-0 shadow-md p-6 bg-white">
+              <Card className="border-0 shadow-md p-6 bg-card text-card-foreground">
                 <Zap className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-                <p className="text-sm text-slate-600 mb-1">Toll Cost</p>
-                <p className="text-2xl font-bold text-slate-900">{activeRoute.toll}</p>
+                <p className="text-sm text-muted-foreground mb-1">Toll Cost</p>
+                <p className="text-2xl font-bold text-foreground">{activeRoute.toll}</p>
               </Card>
             </div>
 
             {/* Route Options */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-6">Route Options</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-6">Route Options</h3>
               <div className="space-y-4">
                 <Card
-                  className="border shadow-md p-6 bg-white border-teal-500 bg-teal-50/10"
+                  className="border shadow-md p-6 bg-card text-card-foreground border-teal-500 bg-teal-500/10"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h4 className="font-bold text-slate-900 mb-2">{activeRoute.name}</h4>
-                      <div className="grid grid-cols-3 gap-4 text-sm text-slate-600">
+                      <h4 className="font-bold text-foreground mb-2">{activeRoute.name}</h4>
+                      <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
                         <p>⏱️ {activeRoute.time}</p>
                         <p>📍 {activeRoute.distance}</p>
                         <p>💰 {activeRoute.toll}</p>
@@ -317,17 +332,17 @@ export default function RoutePlanner() {
             </div>
 
             {/* Turn-by-Turn Directions */}
-            <Card className="border-0 shadow-lg p-8 mb-8 bg-white">
-              <h3 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3">Turn-by-Turn Directions</h3>
+            <Card className="border-0 shadow-lg p-8 mb-8 bg-card text-card-foreground">
+              <h3 className="text-2xl font-bold text-foreground mb-6 border-b border-border pb-3">Turn-by-Turn Directions</h3>
               <div className="space-y-3">
                 {activeRoute.directions.map((item) => (
-                  <div key={item.step} className="flex gap-4 pb-3 border-b border-slate-200 last:border-b-0">
+                  <div key={item.step} className="flex gap-4 pb-3 border-b border-border last:border-b-0">
                     <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold flex-shrink-0">
                       {item.step}
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold text-slate-900">{item.direction}</p>
-                      <p className="text-sm text-slate-500 font-medium">{item.distance}</p>
+                      <p className="font-semibold text-foreground">{item.direction}</p>
+                      <p className="text-sm text-muted-foreground font-medium">{item.distance}</p>
                     </div>
                   </div>
                 ))}
@@ -344,14 +359,14 @@ export default function RoutePlanner() {
               </Button>
               <Button
                 variant="outline"
-                className="border-slate-300 text-slate-900 hover:bg-slate-50 py-6"
+                className="border-border text-foreground hover:bg-muted py-6"
                 onClick={handleAddToTrip}
               >
                 Add to Trip
               </Button>
               <Button
                 variant="outline"
-                className="border-slate-300 text-slate-900 hover:bg-slate-50 py-6"
+                className="border-border text-foreground hover:bg-muted py-6"
                 onClick={handleShareRoute}
               >
                 Share Route

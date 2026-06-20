@@ -15,13 +15,18 @@ import {
   Compass,
   User,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch, clearSession } from "@/lib/api";
+import { Logo } from "@/components/Logo";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [popularDestinations, setPopularDestinations] = useState<any[]>([]);
@@ -137,15 +142,13 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center">
-              <Compass className="w-6 h-6 text-white animate-spin-slow" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900">Smart Travel Planner</h1>
+            <Logo className="w-10 h-10 text-primary animate-pulse" />
+            <h1 className="text-2xl font-bold text-foreground">Smart Travel Planner</h1>
           </div>
           <nav className="flex items-center gap-4">
             <Button
@@ -207,6 +210,17 @@ export default function Home() {
                   Sign Up
                 </Button>
               </>
+            )}
+            {toggleTheme && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-foreground hover:bg-muted"
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+              >
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
             )}
           </nav>
         </div>

@@ -2,13 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { ChevronRight, Check } from "lucide-react";
+import { ChevronRight, Check, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function TripPlanner() {
   const [, navigate] = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [step, setStep] = useState(1);
 
   // Form states
@@ -159,14 +161,27 @@ export default function TripPlanner() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-600 mb-4">
-            ← Back to Home
-          </Button>
-          <h1 className="text-3xl font-bold text-slate-900">Plan Your Trip</h1>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground mb-4">
+              ← Back to Home
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground">Plan Your Trip</h1>
+          </div>
+          {toggleTheme && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 

@@ -2,10 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation } from "wouter";
 import { Slider } from "@/components/ui/slider";
-import { Sparkles, Star, MapPin, TrendingUp } from "lucide-react";
+import { Sparkles, Star, MapPin, TrendingUp, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface RecItem {
   _id: string;
@@ -20,6 +21,7 @@ interface RecItem {
 
 export default function AIRecommendations() {
   const [, navigate] = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [budget, setBudget] = useState(2500);
   const [duration, setDuration] = useState(7);
   const [travelStyle, setTravelStyle] = useState("Comfort");
@@ -136,17 +138,30 @@ export default function AIRecommendations() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-600 mb-4">
-            ← Back to Home
-          </Button>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles className="w-8 h-8 text-orange-500 animate-pulse" />
-            AI Recommendations
-          </h1>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground mb-2 flex items-center gap-1">
+              ← Back to Home
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="w-8 h-8 text-orange-500 animate-pulse" />
+              AI Recommendations
+            </h1>
+          </div>
+          {toggleTheme && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 
@@ -154,8 +169,8 @@ export default function AIRecommendations() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filter Sidebar */}
           <div className="lg:col-span-1">
-            <Card className="border-0 shadow-lg p-6 bg-white">
-              <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-1.5">
+            <Card className="border-0 shadow-lg p-6 bg-card text-card-foreground">
+              <h3 className="font-bold text-foreground mb-6 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-orange-500" />
                 Preferences
               </h3>
@@ -163,7 +178,7 @@ export default function AIRecommendations() {
               <div className="space-y-6">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm font-semibold text-slate-700">Total Budget</label>
+                    <label className="text-sm font-semibold text-foreground/80">Total Budget</label>
                     <span className="text-sm font-bold text-teal-600">₹{budget}</span>
                   </div>
                   <Slider
@@ -174,24 +189,24 @@ export default function AIRecommendations() {
                     step={250}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-xs text-slate-400 mt-1">
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>₹500</span>
                     <span>₹20,000</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Duration (Days)</label>
+                  <label className="block text-sm font-semibold text-foreground/80 mb-2">Duration (Days)</label>
                   <input
                     type="number"
                     value={duration}
                     onChange={(e) => setDuration(Math.max(1, Number(e.target.value)))}
-                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-teal-500"
+                    className="w-full border border-border bg-background rounded px-3 py-2 text-foreground focus:outline-teal-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">Travel Style</label>
+                  <label className="block text-sm font-semibold text-foreground/80 mb-3">Travel Style</label>
                   <div className="space-y-2">
                     {["Budget", "Comfort", "Luxury"].map((style) => (
                       <label key={style} className="flex items-center gap-2 cursor-pointer">
@@ -200,16 +215,16 @@ export default function AIRecommendations() {
                           name="style"
                           checked={travelStyle === style}
                           onChange={() => setTravelStyle(style)}
-                          className="w-4 h-4 text-teal-600 focus:ring-teal-500 border-slate-300"
+                          className="w-4 h-4 text-teal-600 focus:ring-teal-500 border-border"
                         />
-                        <span className="text-sm text-slate-600">{style}</span>
+                        <span className="text-sm text-muted-foreground">{style}</span>
                       </label>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">Interests</label>
+                  <label className="block text-sm font-semibold text-foreground/80 mb-3">Interests</label>
                   <div className="space-y-2">
                     {["Beach", "Mountain", "City", "Heritage", "Nature", "Adventure"].map((interest) => (
                       <label key={interest} className="flex items-center gap-2 cursor-pointer">
@@ -217,9 +232,9 @@ export default function AIRecommendations() {
                           type="checkbox"
                           checked={selectedInterests.includes(interest)}
                           onChange={() => toggleInterest(interest)}
-                          className="w-4 h-4 text-teal-600 focus:ring-teal-500 border-slate-300"
+                          className="w-4 h-4 text-teal-600 focus:ring-teal-500 border-border"
                         />
-                        <span className="text-sm text-slate-600">{interest}</span>
+                        <span className="text-sm text-muted-foreground">{interest}</span>
                       </label>
                     ))}
                   </div>
@@ -241,18 +256,18 @@ export default function AIRecommendations() {
             {isLoading ? (
               <div className="space-y-6">
                 {[1, 2].map((idx) => (
-                  <Card key={idx} className="border-0 shadow-lg overflow-hidden bg-white p-0">
+                  <Card key={idx} className="border-0 shadow-lg overflow-hidden bg-card p-0">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-0 h-48 sm:h-[220px]">
-                      <div className="bg-slate-200 animate-pulse h-full w-full col-span-1" />
+                      <div className="bg-muted animate-pulse h-full w-full col-span-1" />
                       <div className="col-span-2 p-6 flex flex-col justify-between space-y-4">
                         <div className="space-y-2">
-                          <div className="h-6 w-1/3 bg-slate-200 rounded animate-pulse" />
-                          <div className="h-4 w-1/2 bg-slate-200 rounded animate-pulse" />
+                          <div className="h-6 w-1/3 bg-muted rounded animate-pulse" />
+                          <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
                         </div>
-                        <div className="h-16 w-full bg-slate-100 rounded animate-pulse" />
+                        <div className="h-16 w-full bg-muted/55 rounded animate-pulse" />
                         <div className="flex gap-3">
-                          <div className="h-10 w-1/2 bg-slate-200 rounded animate-pulse" />
-                          <div className="h-10 w-1/2 bg-slate-200 rounded animate-pulse" />
+                          <div className="h-10 w-1/2 bg-muted rounded animate-pulse" />
+                          <div className="h-10 w-1/2 bg-muted rounded animate-pulse" />
                         </div>
                       </div>
                     </div>
@@ -260,7 +275,7 @@ export default function AIRecommendations() {
                 ))}
               </div>
             ) : results.length === 0 ? (
-              <Card className="border-0 shadow-md p-10 text-center bg-white text-slate-600">
+              <Card className="border-0 shadow-md p-10 text-center bg-card text-muted-foreground">
                 No destinations match your criteria. Try widening your budget or selecting fewer interests.
               </Card>
             ) : (
@@ -268,12 +283,12 @@ export default function AIRecommendations() {
                 {results.map((rec) => (
                   <Card
                     key={rec._id}
-                    className="border-0 shadow-lg overflow-hidden hover:shadow-xl transition-all cursor-pointer bg-white"
+                    className="border-0 shadow-lg overflow-hidden hover:shadow-xl transition-all cursor-pointer bg-card text-card-foreground"
                     onClick={() => navigate(`/destinations/${rec._id}`)}
                   >
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
                       {/* Image */}
-                      <div className="md:col-span-1 h-48 md:h-auto overflow-hidden bg-slate-100 relative">
+                      <div className="md:col-span-1 h-48 md:h-auto overflow-hidden bg-muted relative">
                         {rec.image ? (
                           <img
                             src={rec.image}
@@ -284,11 +299,11 @@ export default function AIRecommendations() {
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-teal-600 bg-teal-50/50">
+                          <div className="w-full h-full flex items-center justify-center text-teal-600 bg-teal-500/10">
                             <MapPin className="w-12 h-12" />
                           </div>
                         )}
-                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-semibold flex items-center gap-1">
+                        <div className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-semibold flex items-center gap-1 text-foreground">
                           <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
                           {rec.rating || 4.5}
                         </div>
@@ -299,8 +314,8 @@ export default function AIRecommendations() {
                         <div>
                           <div className="flex items-start justify-between mb-4 gap-2">
                             <div>
-                              <h3 className="text-2xl font-bold text-slate-900 mb-2">{rec.name}</h3>
-                              <p className="text-slate-600 flex items-center gap-2">
+                              <h3 className="text-2xl font-bold text-foreground mb-2">{rec.name}</h3>
+                              <p className="text-muted-foreground flex items-center gap-2">
                                 <MapPin className="w-4 h-4 text-teal-600" />
                                 {rec.country} • {rec.category} Category
                               </p>
@@ -310,13 +325,13 @@ export default function AIRecommendations() {
                                 <TrendingUp className="w-5 h-5 text-orange-500" />
                                 <span className="text-3xl font-bold text-orange-500">{rec.score}%</span>
                               </div>
-                              <p className="text-xs text-slate-500 font-semibold">Match Score</p>
+                              <p className="text-xs text-muted-foreground font-semibold">Match Score</p>
                             </div>
                           </div>
 
-                          <div className="bg-slate-50 p-4 rounded-lg mb-4">
-                            <p className="text-sm font-semibold text-slate-700 mb-1">Why This Destination?</p>
-                            <p className="text-slate-700 text-sm leading-relaxed">{rec.reason}</p>
+                          <div className="bg-muted p-4 rounded-lg mb-4">
+                            <p className="text-sm font-semibold text-foreground/80 mb-1">Why This Destination?</p>
+                            <p className="text-foreground/80 text-sm leading-relaxed">{rec.reason}</p>
                           </div>
                         </div>
 
@@ -332,7 +347,7 @@ export default function AIRecommendations() {
                           </Button>
                           <Button
                             variant="outline"
-                            className="flex-1 border-teal-600 text-teal-600 hover:bg-teal-50"
+                            className="flex-1 border-teal-600 text-teal-600 hover:bg-teal-500/10"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/planner?destination=${encodeURIComponent(rec.name)}&budget=${budget}&travelers=2&destinationId=${rec._id}`);
@@ -349,9 +364,9 @@ export default function AIRecommendations() {
             )}
 
             {/* Chat Integration */}
-            <Card className="border-0 shadow-lg p-8 mt-8 bg-gradient-to-br from-teal-50 to-slate-50">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">Need More Help?</h3>
-              <p className="text-slate-700 mb-6">
+            <Card className="border-0 shadow-lg p-8 mt-8 bg-gradient-to-br from-teal-500/10 to-muted/30">
+              <h3 className="text-2xl font-bold text-foreground mb-4">Need More Help?</h3>
+              <p className="text-foreground/80 mb-6">
                 Chat with our AI assistant to get personalized recommendations based on your specific preferences.
               </p>
               <Button

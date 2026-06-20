@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation, useParams } from "wouter";
-import { Star, MapPin, Heart, Compass } from "lucide-react";
+import { Star, MapPin, Heart, Compass, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface Destination {
   id: string;
@@ -80,6 +81,7 @@ export default function DestinationDetails() {
   const [, navigate] = useLocation();
   const params = useParams();
   const id = params.id; // string ObjectId
+  const { theme, toggleTheme } = useTheme();
   
   const [destination, setDestination] = useState<Destination | null>(null);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -163,17 +165,17 @@ export default function DestinationDetails() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <p className="text-lg text-slate-600 font-medium animate-pulse">Loading destination details...</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-foreground">
+        <p className="text-lg text-muted-foreground font-medium animate-pulse">Loading destination details...</p>
       </div>
     );
   }
 
   if (!destination) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Destination Not Found</h2>
-        <p className="text-slate-600 mb-6">The destination you are looking for does not exist or has been removed.</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-foreground">
+        <h2 className="text-2xl font-bold text-foreground mb-2">Destination Not Found</h2>
+        <p className="text-muted-foreground mb-6">The destination you are looking for does not exist or has been removed.</p>
         <Button onClick={() => navigate("/destinations")} className="bg-teal-600 hover:bg-teal-700 text-white">
           Back to Destinations
         </Button>
@@ -203,14 +205,27 @@ export default function DestinationDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/destinations")} className="text-slate-600 mb-4">
-            ← Back to Destinations
-          </Button>
-          <h1 className="text-3xl font-bold text-slate-900">Destination Details</h1>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <Button variant="ghost" onClick={() => navigate("/destinations")} className="text-muted-foreground mb-2 flex items-center gap-1">
+              ← Back to Destinations
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground">Destination Details</h1>
+          </div>
+          {toggleTheme && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 
@@ -219,7 +234,7 @@ export default function DestinationDetails() {
           {/* Main Content */}
           <div className="lg:col-span-2">
             {/* Image Gallery */}
-            <Card className="border-0 shadow-lg overflow-hidden mb-8">
+            <Card className="border border-border shadow-lg overflow-hidden mb-8 bg-card">
               <img
                 src={destination.image}
                 alt={destination.name}
@@ -234,56 +249,56 @@ export default function DestinationDetails() {
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
                 <div>
-                  <h2 className="text-4xl font-bold text-slate-900 mb-2">{destination.name}</h2>
-                  <p className="text-lg text-slate-600 flex items-center gap-2">
+                  <h2 className="text-4xl font-bold text-foreground mb-2">{destination.name}</h2>
+                  <p className="text-lg text-muted-foreground flex items-center gap-2">
                     <MapPin className="w-5 h-5" />
                     {destination.country} • {destination.category} • {destination.style}
                   </p>
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="flex items-center sm:justify-end gap-2 mb-2">
-                    <Star className="w-5 h-5 fill-orange-400 text-orange-400" />
+                    <Star className="w-5 h-5 fill-orange-450 text-orange-500" />
                     <span className="text-2xl font-bold">{destination.rating}</span>
                   </div>
-                  <p className="text-sm text-slate-600">{destination.reviewsCount} reviews</p>
+                  <p className="text-sm text-muted-foreground">{destination.reviewsCount} reviews</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                <Card className="border-0 shadow-md p-4 text-center">
-                  <p className="text-sm text-slate-600 mb-1">Budget Level</p>
-                  <p className="font-bold text-slate-900">{destination.budgetLevel}</p>
+                <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
+                  <p className="text-sm text-muted-foreground mb-1">Budget Level</p>
+                  <p className="font-bold text-foreground">{destination.budgetLevel}</p>
                 </Card>
-                <Card className="border-0 shadow-md p-4 text-center">
-                  <p className="text-sm text-slate-600 mb-1">Best Time</p>
-                  <p className="font-bold text-slate-900">{destination.bestTime}</p>
+                <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
+                  <p className="text-sm text-muted-foreground mb-1">Best Time</p>
+                  <p className="font-bold text-foreground">{destination.bestTime}</p>
                 </Card>
-                <Card className="border-0 shadow-md p-4 text-center">
-                  <p className="text-sm text-slate-600 mb-1">Avg. Temp</p>
-                  <p className="font-bold text-slate-900">{destination.avgTemp}</p>
+                <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
+                  <p className="text-sm text-muted-foreground mb-1">Avg. Temp</p>
+                  <p className="font-bold text-foreground">{destination.avgTemp}</p>
                 </Card>
               </div>
             </div>
 
             {/* Description */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">About</h3>
-              <p className="text-slate-700 leading-relaxed mb-4">
+              <h3 className="text-2xl font-bold text-foreground mb-4">About</h3>
+              <p className="text-foreground/80 leading-relaxed mb-4">
                 {destination.about}
               </p>
-              <p className="text-slate-700 leading-relaxed">
+              <p className="text-foreground/80 leading-relaxed">
                 {destination.aboutExtra}
               </p>
             </div>
 
             {/* Attractions */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">Top Attractions</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Top Attractions</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {destination.attractions.map((attraction) => (
-                  <Card key={attraction} className="border-0 shadow-md p-4 flex items-center gap-3">
+                  <Card key={attraction} className="border border-border bg-card text-card-foreground shadow-md p-4 flex items-center gap-3">
                     <Compass className="w-5 h-5 text-teal-600 flex-shrink-0" />
-                    <span className="text-slate-900 font-medium">{attraction}</span>
+                    <span className="text-foreground font-medium">{attraction}</span>
                   </Card>
                 ))}
               </div>
@@ -291,13 +306,13 @@ export default function DestinationDetails() {
 
             {/* Weather */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">Weather Forecast</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Weather Forecast</h3>
               <div className="grid grid-cols-5 gap-2">
                 {destination.weather.map((day) => (
-                  <Card key={day.day} className="border-0 shadow-md p-4 text-center">
-                    <p className="text-sm font-semibold text-slate-900 mb-2">{day.day}</p>
+                  <Card key={day.day} className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
+                    <p className="text-sm font-semibold text-foreground mb-2">{day.day}</p>
                     <p className="text-2xl mb-2">{day.icon}</p>
-                    <p className="font-bold text-slate-900">{day.temp}</p>
+                    <p className="font-bold text-foreground">{day.temp}</p>
                   </Card>
                 ))}
               </div>
@@ -306,21 +321,21 @@ export default function DestinationDetails() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <Card className="border-0 shadow-lg p-6 sticky top-24">
+            <Card className="border border-border bg-card text-card-foreground shadow-lg p-6 sticky top-24">
               <div className="space-y-4">
                 <Button onClick={handlePlanTrip} className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg">
                   Plan Trip Here
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-teal-600 text-teal-600 hover:bg-teal-50 py-6"
+                  className="w-full border-teal-600 text-teal-600 hover:bg-teal-500/10 py-6"
                   onClick={() => navigate(`/route-planner?end=${encodeURIComponent(destination.name)}`)}
                 >
                   View Route
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-slate-300 text-slate-900 hover:bg-slate-50 py-6"
+                  className="w-full border-border text-foreground hover:bg-muted py-6"
                   onClick={() => navigate(`/ai-recommendations?interests=${encodeURIComponent(destination.category)}`)}
                 >
                   Get AI Recommendations
@@ -330,29 +345,29 @@ export default function DestinationDetails() {
                   onClick={handleWishlistToggle}
                   className={`w-full py-6 flex items-center justify-center gap-2 ${
                     isWishlisted 
-                      ? "bg-red-50 border-red-300 text-red-600 hover:bg-red-100" 
-                      : "border-slate-300 text-slate-900 hover:bg-slate-50"
+                      ? "bg-red-500/10 border-red-300 text-red-500 hover:bg-red-500/20" 
+                      : "border-border text-foreground hover:bg-muted"
                   }`}
                 >
-                  <Heart className={`w-5 h-5 ${isWishlisted ? "fill-red-600 text-red-600" : ""}`} />
+                  <Heart className={`w-5 h-5 ${isWishlisted ? "fill-red-650 text-red-500" : ""}`} />
                   {isWishlisted ? "Saved in Wishlist" : "Add to Wishlist"}
                 </Button>
               </div>
 
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <h4 className="font-bold text-slate-900 mb-4">Quick Info</h4>
+              <div className="mt-8 pt-8 border-t border-border">
+                <h4 className="font-bold text-foreground mb-4">Quick Info</h4>
                 <div className="space-y-3 text-sm">
                   <div>
-                    <p className="text-slate-600">Currency</p>
-                    <p className="font-semibold text-slate-900">{destination.currency}</p>
+                    <p className="text-muted-foreground">Currency</p>
+                    <p className="font-semibold text-foreground">{destination.currency}</p>
                   </div>
                   <div>
-                    <p className="text-slate-600">Language</p>
-                    <p className="font-semibold text-slate-900">{destination.language}</p>
+                    <p className="text-muted-foreground">Language</p>
+                    <p className="font-semibold text-foreground">{destination.language}</p>
                   </div>
                   <div>
-                    <p className="text-slate-600">Visa</p>
-                    <p className="font-semibold text-slate-900">{destination.visa}</p>
+                    <p className="text-muted-foreground">Visa</p>
+                    <p className="font-semibold text-foreground">{destination.visa}</p>
                   </div>
                 </div>
               </div>

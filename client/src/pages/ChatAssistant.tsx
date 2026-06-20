@@ -11,6 +11,7 @@ import {
   Compass,
   Cloud,
   Sun,
+  Moon,
   Calendar,
   ExternalLink,
   HelpCircle,
@@ -23,6 +24,8 @@ import {
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { Logo } from "@/components/Logo";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // =============================================================================
 // DESTINATION DATABASE (50 SAMPLE DESTINATIONS)
@@ -476,6 +479,7 @@ const renderFormattedText = (text: string) => {
 
 export default function ChatAssistant() {
   const [, navigate] = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [messages, setMessages] = useState<RichMessage[]>([
     {
       id: 1,
@@ -882,17 +886,30 @@ export default function ChatAssistant() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100 font-sans antialiased text-slate-800">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 font-sans antialiased">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-600 font-semibold flex items-center gap-1">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground font-semibold flex items-center gap-1">
             ← Back to Home
           </Button>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <MessageCircle className="w-6 h-6 text-teal-600" />
-            AI Travel Copilot
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Logo className="w-6 h-6 text-primary animate-pulse" />
+              AI Travel Copilot
+            </h1>
+            {toggleTheme && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-foreground hover:bg-muted"
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+              >
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

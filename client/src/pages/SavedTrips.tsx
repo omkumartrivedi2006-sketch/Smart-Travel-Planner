@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Edit2, Trash2, Share2, Calendar, DollarSign, MapPin, Loader2 } from "lucide-react";
+import { Edit2, Trash2, Share2, Calendar, DollarSign, MapPin, Loader2, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface Trip {
   _id: string;
@@ -34,6 +35,7 @@ interface Trip {
 
 export default function SavedTrips() {
   const [, navigate] = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("All");
@@ -100,22 +102,35 @@ export default function SavedTrips() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-600 mb-4">
-            ← Back to Home
-          </Button>
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-slate-900">My Trips</h1>
-            <Button
-              className="bg-teal-600 hover:bg-teal-700 text-white"
-              onClick={() => navigate("/planner")}
-            >
-              + Create New Trip
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex-1">
+            <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground mb-4">
+              ← Back to Home
             </Button>
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold text-foreground">My Trips</h1>
+              <Button
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+                onClick={() => navigate("/planner")}
+              >
+                + Create New Trip
+              </Button>
+            </div>
           </div>
+          {toggleTheme && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted self-end mb-1"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 

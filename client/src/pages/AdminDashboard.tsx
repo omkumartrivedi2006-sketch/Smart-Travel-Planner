@@ -2,9 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { BarChart3, Users, MapPin, TrendingUp, Edit2, Trash2, Plus, X, Check, Eye } from "lucide-react";
+import { BarChart3, Users, MapPin, TrendingUp, Edit2, Trash2, Plus, X, Check, Eye, Sun, Moon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface DestinationItem {
   id: number;
@@ -31,6 +32,7 @@ interface ReviewItem {
 
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   // Table States
   const [destinations, setDestinations] = useState<DestinationItem[]>([
@@ -155,58 +157,71 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-600 mb-4">
-            ← Back to Home
-          </Button>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <BarChart3 className="w-8 h-8 text-purple-600 animate-pulse" />
-            Admin Dashboard
-          </h1>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground mb-2 flex items-center gap-1">
+              ← Back to Home
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <BarChart3 className="w-8 h-8 text-purple-600 animate-pulse" />
+              Admin Dashboard
+            </h1>
+          </div>
+          {toggleTheme && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
         {/* Dashboard Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-0 shadow-lg p-6 bg-white">
+          <Card className="border-0 shadow-lg p-6 bg-card text-card-foreground">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 mb-1">Total Users</p>
-                <p className="text-3xl font-bold text-slate-900">{users.length + 1231}</p>
+                <p className="text-sm text-muted-foreground mb-1">Total Users</p>
+                <p className="text-3xl font-bold text-foreground">{users.length + 1231}</p>
               </div>
               <Users className="w-10 h-10 text-blue-600 opacity-20" />
             </div>
           </Card>
 
-          <Card className="border-0 shadow-lg p-6 bg-white">
+          <Card className="border-0 shadow-lg p-6 bg-card text-card-foreground">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 mb-1">Total Destinations</p>
-                <p className="text-3xl font-bold text-slate-900">{destinations.length + 453}</p>
+                <p className="text-sm text-muted-foreground mb-1">Total Destinations</p>
+                <p className="text-3xl font-bold text-foreground">{destinations.length + 453}</p>
               </div>
               <MapPin className="w-10 h-10 text-red-600 opacity-20" />
             </div>
           </Card>
 
-          <Card className="border-0 shadow-lg p-6 bg-white">
+          <Card className="border-0 shadow-lg p-6 bg-card text-card-foreground">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 mb-1">Trips Planned</p>
-                <p className="text-3xl font-bold text-slate-900">2,891</p>
+                <p className="text-sm text-muted-foreground mb-1">Trips Planned</p>
+                <p className="text-3xl font-bold text-foreground">2,891</p>
               </div>
               <TrendingUp className="w-10 h-10 text-green-600 opacity-20" />
             </div>
           </Card>
 
-          <Card className="border-0 shadow-lg p-6 bg-white">
+          <Card className="border-0 shadow-lg p-6 bg-card text-card-foreground">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600 mb-1">Revenue</p>
-                <p className="text-3xl font-bold text-slate-900">₹45.2K</p>
+                <p className="text-sm text-muted-foreground mb-1">Revenue</p>
+                <p className="text-3xl font-bold text-foreground">₹45.2K</p>
               </div>
               <BarChart3 className="w-10 h-10 text-purple-600 opacity-20" />
             </div>
@@ -217,9 +232,9 @@ export default function AdminDashboard() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Manage Destinations */}
-            <Card className="border-0 shadow-lg p-8 bg-white">
+            <Card className="border-0 shadow-lg p-8 bg-card text-card-foreground">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-slate-900">Manage Destinations</h3>
+                <h3 className="text-2xl font-bold text-foreground">Manage Destinations</h3>
                 <Button onClick={handleOpenAdd} className="bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-2">
                   <Plus className="w-4 h-4" />
                   Add Destination
@@ -229,27 +244,27 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-4 font-semibold text-slate-900">Name</th>
-                      <th className="text-left py-3 px-4 font-semibold text-slate-900">Country</th>
-                      <th className="text-left py-3 px-4 font-semibold text-slate-900">Category</th>
-                      <th className="text-left py-3 px-4 font-semibold text-slate-900">Rating</th>
-                      <th className="text-left py-3 px-4 font-semibold text-slate-900">Actions</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Name</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Country</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Category</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Rating</th>
+                      <th className="text-left py-3 px-4 font-semibold text-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {destinations.map((dest) => (
-                      <tr key={dest.id} className="border-b border-slate-200 hover:bg-slate-50">
-                        <td className="py-3 px-4 font-semibold text-slate-900">{dest.name}</td>
-                        <td className="py-3 px-4 text-slate-600">{dest.country}</td>
-                        <td className="py-3 px-4 text-slate-600">{dest.category}</td>
-                        <td className="py-3 px-4 text-slate-600">⭐ {dest.rating}</td>
+                      <tr key={dest.id} className="border-b border-border hover:bg-muted/50">
+                        <td className="py-3 px-4 font-semibold text-foreground">{dest.name}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{dest.country}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{dest.category}</td>
+                        <td className="py-3 px-4 text-muted-foreground">⭐ {dest.rating}</td>
                         <td className="py-3 px-4">
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-slate-300 text-slate-700 hover:bg-slate-100"
+                              className="border-border text-foreground hover:bg-muted"
                               onClick={() => handleOpenEdit(dest)}
                             >
                               <Edit2 className="w-4 h-4" />
@@ -257,7 +272,7 @@ export default function AdminDashboard() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                              className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive"
                               onClick={() => handleDeleteDestination(dest.id, dest.name)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -272,23 +287,23 @@ export default function AdminDashboard() {
             </Card>
 
             {/* Manage Users */}
-            <Card className="border-0 shadow-lg p-8 bg-white">
-              <h3 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3">Recent Users</h3>
+            <Card className="border-0 shadow-lg p-8 bg-card text-card-foreground">
+              <h3 className="text-2xl font-bold text-foreground mb-6 border-b border-border pb-3">Recent Users</h3>
 
               <div className="space-y-4">
                 {users.map((user) => (
-                  <div key={user.email} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 flex-wrap gap-4">
+                  <div key={user.email} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 flex-wrap gap-4">
                     <div>
-                      <p className="font-semibold text-slate-900">{user.name}</p>
-                      <p className="text-sm text-slate-600">{user.email}</p>
+                      <p className="font-semibold text-foreground">{user.name}</p>
+                      <p className="text-sm text-muted-foreground">{user.email}</p>
                     </div>
                     <div className="text-right flex items-center gap-4">
                       <div>
-                        <p className="text-sm text-slate-600 font-medium">{user.trips} trips</p>
+                        <p className="text-sm text-muted-foreground font-medium">{user.trips} trips</p>
                         <span className={`text-xs font-semibold px-2 py-1 rounded inline-block mt-1 ${
                           user.status === "Active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-700"
+                            ? "bg-green-500/10 text-green-600"
+                            : "bg-muted text-muted-foreground"
                         }`}>
                           {user.status}
                         </span>
@@ -297,7 +312,7 @@ export default function AdminDashboard() {
                         size="sm"
                         variant="outline"
                         onClick={() => toggleUserStatus(user.email)}
-                        className="border-slate-300 hover:bg-slate-100 text-slate-800"
+                        className="border-border hover:bg-muted text-foreground"
                       >
                         {user.status === "Active" ? "Suspend" : "Activate"}
                       </Button>
@@ -308,19 +323,19 @@ export default function AdminDashboard() {
             </Card>
 
             {/* Manage Reviews */}
-            <Card className="border-0 shadow-lg p-8 bg-white">
-              <h3 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3">Pending Reviews</h3>
+            <Card className="border-0 shadow-lg p-8 bg-card text-card-foreground">
+              <h3 className="text-2xl font-bold text-foreground mb-6 border-b border-border pb-3">Pending Reviews</h3>
 
               <div className="space-y-4">
                 {reviews.length === 0 ? (
-                  <p className="text-slate-500 text-sm text-center py-4">No pending reviews to moderate.</p>
+                  <p className="text-muted-foreground text-sm text-center py-4">No pending reviews to moderate.</p>
                 ) : (
                   reviews.map((review) => (
-                    <div key={review.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                    <div key={review.id} className="p-4 border border-border rounded-lg bg-muted/40">
                       <div className="flex items-start justify-between mb-3 flex-wrap gap-4">
                         <div>
-                          <p className="font-semibold text-slate-900">{review.author}</p>
-                          <p className="text-sm text-slate-600 font-medium">{review.destination} • ⭐ {review.rating}</p>
+                          <p className="font-semibold text-foreground">{review.author}</p>
+                          <p className="text-sm text-muted-foreground font-medium">{review.destination} • ⭐ {review.rating}</p>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -333,14 +348,14 @@ export default function AdminDashboard() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-red-300 text-red-600 hover:bg-red-50"
+                            className="border-destructive/30 text-destructive hover:bg-destructive/10"
                             onClick={() => handleRejectReview(review.id, review.author)}
                           >
                             <X className="w-4 h-4" /> Reject
                           </Button>
                         </div>
                       </div>
-                      <p className="text-slate-700 text-sm leading-relaxed">{review.review}</p>
+                      <p className="text-foreground/80 text-sm leading-relaxed">{review.review}</p>
                     </div>
                   ))
                 )}
@@ -350,53 +365,53 @@ export default function AdminDashboard() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <Card className="border-0 shadow-lg p-6 sticky top-24 bg-white">
-              <h3 className="font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3">Admin Tools</h3>
+            <Card className="border-0 shadow-lg p-6 sticky top-24 bg-card text-card-foreground">
+              <h3 className="font-bold text-foreground mb-6 border-b border-border pb-3">Admin Tools</h3>
 
               <div className="space-y-3">
                 <Button
                   variant="outline"
-                  className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start py-6"
+                  className="w-full border-border text-foreground hover:bg-muted justify-start py-6"
                   onClick={handleOpenAdd}
                 >
                   + Add Destination
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start py-6"
+                  className="w-full border-border text-foreground hover:bg-muted justify-start py-6"
                   onClick={() => toast.success("Loading full user logs registry...")}
                 >
                   View All Users
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start py-6"
+                  className="w-full border-border text-foreground hover:bg-muted justify-start py-6"
                   onClick={() => toast.success("Preparing analytical system reports...")}
                 >
                   Analytics Report
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start py-6"
+                  className="w-full border-border text-foreground hover:bg-muted justify-start py-6"
                   onClick={() => toast.info("Opening admin system configurations...")}
                 >
                   System Settings
                 </Button>
               </div>
 
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <h4 className="font-bold text-slate-900 mb-4">Quick Stats</h4>
+              <div className="mt-8 pt-8 border-t border-border">
+                <h4 className="font-bold text-foreground mb-4">Quick Stats</h4>
                 <div className="space-y-3 text-sm font-semibold">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-600">New Users (7d)</span>
-                    <span className="text-slate-950">+45</span>
+                    <span className="text-muted-foreground">New Users (7d)</span>
+                    <span className="text-foreground font-bold">+45</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-600">New Trips (7d)</span>
-                    <span className="text-slate-950">+128</span>
+                    <span className="text-muted-foreground">New Trips (7d)</span>
+                    <span className="text-foreground font-bold">+128</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Avg. Rating</span>
+                    <span className="text-muted-foreground">Avg. Rating</span>
                     <span className="text-teal-600">4.7 / 5</span>
                   </div>
                 </div>
@@ -410,20 +425,20 @@ export default function AdminDashboard() {
       {/* 1. Add Destination Modal */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="p-6 bg-white w-full max-w-md shadow-2xl relative border-0">
+          <Card className="p-6 bg-card text-card-foreground w-full max-w-md shadow-2xl relative border border-border">
             <button
               onClick={() => setIsAddOpen(false)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3 flex items-center gap-1.5">
+            <h2 className="text-2xl font-bold text-foreground mb-6 border-b border-border pb-3 flex items-center gap-1.5">
               <Plus className="w-6 h-6 text-teal-600" />
               Add Destination
             </h2>
             <form onSubmit={handleSaveNewDestination} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">City Name</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">City Name</label>
                 <Input
                   value={destName}
                   onChange={(e) => setDestName(e.target.value)}
@@ -432,7 +447,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Country</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">Country</label>
                 <Input
                   value={destCountry}
                   onChange={(e) => setDestCountry(e.target.value)}
@@ -441,11 +456,11 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">Category</label>
                 <select
                   value={destCategory}
                   onChange={(e) => setDestCategory(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
+                  className="w-full border border-border bg-background rounded px-3 py-2 text-foreground focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
                 >
                   <option>Beach</option>
                   <option>Adventure</option>
@@ -455,7 +470,7 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Rating (1-5)</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">Rating (1-5)</label>
                 <Input
                   type="number"
                   min="1"
@@ -470,7 +485,7 @@ export default function AdminDashboard() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                  className="border-border text-foreground hover:bg-muted"
                   onClick={() => setIsAddOpen(false)}
                 >
                   Cancel
@@ -487,20 +502,20 @@ export default function AdminDashboard() {
       {/* 2. Edit Destination Modal */}
       {isEditOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="p-6 bg-white w-full max-w-md shadow-2xl relative border-0">
+          <Card className="p-6 bg-card text-card-foreground w-full max-w-md shadow-2xl relative border border-border">
             <button
               onClick={() => setIsEditOpen(false)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3 flex items-center gap-1.5">
+            <h2 className="text-2xl font-bold text-foreground mb-6 border-b border-border pb-3 flex items-center gap-1.5">
               <Edit2 className="w-5 h-5 text-teal-600" />
               Edit Destination
             </h2>
             <form onSubmit={handleSaveEditDestination} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">City Name</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">City Name</label>
                 <Input
                   value={destName}
                   onChange={(e) => setDestName(e.target.value)}
@@ -508,7 +523,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Country</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">Country</label>
                 <Input
                   value={destCountry}
                   onChange={(e) => setDestCountry(e.target.value)}
@@ -516,11 +531,11 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">Category</label>
                 <select
                   value={destCategory}
                   onChange={(e) => setDestCategory(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
+                  className="w-full border border-border bg-background rounded px-3 py-2 text-foreground focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
                 >
                   <option>Beach</option>
                   <option>Adventure</option>
@@ -530,7 +545,7 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Rating (1-5)</label>
+                <label className="block text-sm font-semibold text-foreground/80 mb-2">Rating (1-5)</label>
                 <Input
                   type="number"
                   min="1"
@@ -545,7 +560,7 @@ export default function AdminDashboard() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                  className="border-border text-foreground hover:bg-muted"
                   onClick={() => setIsEditOpen(false)}
                 >
                   Cancel

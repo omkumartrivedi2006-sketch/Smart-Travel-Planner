@@ -33,7 +33,7 @@ export async function register(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -44,7 +44,7 @@ export async function register(
       name,
       email,
       password,
-      role: role || "user",
+      role: "user",
     });
 
     const payload = { userId: newUser._id.toString(), role: newUser.role };

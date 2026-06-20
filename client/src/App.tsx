@@ -20,6 +20,7 @@ import RoutePlanner from "./pages/RoutePlanner";
 import ChatAssistant from "./pages/ChatAssistant";
 import UserProfile from "./pages/UserProfile";
 import AdminDashboard from "./pages/AdminDashboard";
+import ChatWidget from "./components/ChatWidget";
 
 function Router() {
   return (
@@ -57,11 +58,12 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider
         defaultTheme="light"
-        // switchable
+        switchable
       >
         <TooltipProvider>
           <Toaster />
           <Router />
+          <ChatWidget />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

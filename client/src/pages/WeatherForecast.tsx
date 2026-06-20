@@ -2,10 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { Cloud, Droplets, Wind, Eye, Sparkles } from "lucide-react";
+import { Cloud, Droplets, Wind, Eye, Sparkles, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface WeatherData {
   city: string;
@@ -42,6 +43,7 @@ const getWeatherIcon = (cond: string) => {
 
 export default function WeatherForecast() {
   const [, navigate] = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("Goa");
   const [currentWeather, setCurrentWeather] = useState<WeatherData | null>(null);
   const [travelDate, setTravelDate] = useState("");
@@ -130,8 +132,8 @@ export default function WeatherForecast() {
 
   if (!currentWeather && !isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <p className="text-lg text-slate-600 font-medium mb-4">No weather details loaded.</p>
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 transition-colors duration-300">
+        <p className="text-lg text-muted-foreground font-medium mb-4">No weather details loaded.</p>
         <Button onClick={() => handleSearchWeather("Goa")} className="bg-teal-600 hover:bg-teal-700 text-white">
           Load Default Location
         </Button>
@@ -140,17 +142,30 @@ export default function WeatherForecast() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-600 mb-4">
-            ← Back to Home
-          </Button>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            <Cloud className="w-8 h-8 text-cyan-500" />
-            Weather Forecast
-          </h1>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground mb-4">
+              ← Back to Home
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <Cloud className="w-8 h-8 text-cyan-500 animate-pulse" />
+              Weather Forecast
+            </h1>
+          </div>
+          {toggleTheme && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-foreground hover:bg-muted"
+              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 
@@ -158,26 +173,28 @@ export default function WeatherForecast() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Search Sidebar */}
           <div className="lg:col-span-1">
-            <Card className="border-0 shadow-lg p-6 bg-white">
-              <h3 className="font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3">Search Location</h3>
+            <Card className="border border-border shadow-lg p-6 bg-card text-card-foreground">
+              <h3 className="font-bold text-card-foreground mb-6 border-b border-border pb-3">Search Location</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Destination</label>
+                  <label className="block text-sm font-semibold text-muted-foreground mb-2">Destination</label>
                   <Input
                     placeholder="Enter city or destination"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleKeyPress}
+                    className="bg-background text-foreground border-border"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Travel Dates</label>
+                  <label className="block text-sm font-semibold text-muted-foreground mb-2">Travel Dates</label>
                   <Input
                     type="date"
                     value={travelDate}
                     onChange={(e) => setTravelDate(e.target.value)}
+                    className="bg-background text-foreground border-border"
                   />
                 </div>
 
@@ -190,12 +207,12 @@ export default function WeatherForecast() {
                 </Button>
               </div>
 
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <h4 className="font-bold text-slate-900 mb-4">Quick Actions</h4>
+              <div className="mt-8 pt-8 border-t border-border">
+                <h4 className="font-bold text-card-foreground mb-4">Quick Actions</h4>
                 <div className="space-y-2">
                   <Button
                     variant="outline"
-                    className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start"
+                    className="w-full border-border text-foreground hover:bg-muted justify-start"
                     onClick={handleAddToTrip}
                     disabled={!currentWeather}
                   >
@@ -203,7 +220,7 @@ export default function WeatherForecast() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start"
+                    className="w-full border-border text-foreground hover:bg-muted justify-start"
                     onClick={() => {
                       if (currentWeather) {
                         navigate(`/chat-assistant?topic=packing%20tips%20for%20${encodeURIComponent(currentWeather.city)}`);
@@ -221,123 +238,123 @@ export default function WeatherForecast() {
           {/* Weather Content */}
           <div className="lg:col-span-3">
             {isLoading ? (
-              <Card className="border-0 shadow-lg p-16 flex flex-col items-center justify-center bg-white">
+              <Card className="border border-border shadow-lg p-16 flex flex-col items-center justify-center bg-card text-card-foreground">
                 <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-slate-600 font-medium">Fetching real-time weather forecasts...</p>
+                <p className="text-muted-foreground font-medium">Fetching real-time weather forecasts...</p>
               </Card>
             ) : currentWeather ? (
               <div className="space-y-8 animate-fadeIn">
                 {/* Current Weather */}
-                <Card className="border-0 shadow-lg p-8 bg-gradient-to-br from-cyan-50 to-blue-50">
+                <Card className="border border-cyan-100 dark:border-cyan-900/40 shadow-lg p-8 bg-gradient-to-br from-cyan-50/50 to-blue-50/50 dark:from-cyan-950/40 dark:to-blue-950/40">
                   <div className="flex flex-col sm:flex-row items-start justify-between gap-6 mb-6">
                     <div>
-                      <h2 className="text-4xl font-bold text-slate-900 mb-2">{currentWeather.city}, {currentWeather.country}</h2>
-                      <p className="text-slate-600 font-medium">Current Weather Forecast</p>
+                      <h2 className="text-4xl font-bold text-foreground mb-2">{currentWeather.city}, {currentWeather.country}</h2>
+                      <p className="text-muted-foreground font-medium">Current Weather Forecast</p>
                     </div>
                     <div className="text-left sm:text-right flex items-center gap-4">
                       <span className="text-5xl">{currentWeather.icon}</span>
                       <div>
-                        <p className="text-5xl sm:text-6xl font-bold text-slate-900">{currentWeather.temp}°C</p>
-                        <p className="text-slate-600 font-semibold">{currentWeather.condition}</p>
+                        <p className="text-5xl sm:text-6xl font-bold text-foreground">{currentWeather.temp}°C</p>
+                        <p className="text-muted-foreground font-semibold">{currentWeather.condition}</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="bg-card text-card-foreground p-4 rounded-lg shadow-sm border border-border">
                       <div className="flex items-center gap-2 mb-2">
                         <Droplets className="w-5 h-5 text-blue-500" />
-                        <p className="text-sm text-slate-600 font-medium">Humidity</p>
+                        <p className="text-sm text-muted-foreground font-medium">Humidity</p>
                       </div>
-                      <p className="text-2xl font-bold text-slate-900">{currentWeather.humidity}%</p>
+                      <p className="text-2xl font-bold text-foreground">{currentWeather.humidity}%</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="bg-card text-card-foreground p-4 rounded-lg shadow-sm border border-border">
                       <div className="flex items-center gap-2 mb-2">
                         <Wind className="w-5 h-5 text-cyan-500" />
-                        <p className="text-sm text-slate-600 font-medium">Wind Speed</p>
+                        <p className="text-sm text-muted-foreground font-medium">Wind Speed</p>
                       </div>
-                      <p className="text-2xl font-bold text-slate-900">{currentWeather.windSpeed} km/h</p>
+                      <p className="text-2xl font-bold text-foreground">{currentWeather.windSpeed} km/h</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="bg-card text-card-foreground p-4 rounded-lg shadow-sm border border-border">
                       <div className="flex items-center gap-2 mb-2">
                         <Eye className="w-5 h-5 text-purple-500" />
-                        <p className="text-sm text-slate-600 font-medium">Visibility</p>
+                        <p className="text-sm text-muted-foreground font-medium">Visibility</p>
                       </div>
-                      <p className="text-2xl font-bold text-slate-900">{currentWeather.visibility} km</p>
+                      <p className="text-2xl font-bold text-foreground">{currentWeather.visibility} km</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="bg-card text-card-foreground p-4 rounded-lg shadow-sm border border-border">
                       <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="w-5 h-5 text-yellow-500" />
-                        <p className="text-sm text-slate-600 font-medium">UV Index</p>
+                        <p className="text-sm text-muted-foreground font-medium">UV Index</p>
                       </div>
-                      <p className="text-2xl font-bold text-slate-900">{currentWeather.uvIndex}/10</p>
+                      <p className="text-2xl font-bold text-foreground">{currentWeather.uvIndex}/10</p>
                     </div>
                   </div>
                 </Card>
 
                 {/* 7-Day Forecast */}
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">7-Day Forecast</h3>
+                  <h3 className="text-2xl font-bold text-foreground mb-6">7-Day Forecast</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {currentWeather.forecast.map((day) => (
-                      <Card key={day.day} className="border-0 shadow-md p-6 text-center bg-white flex flex-col justify-between">
-                        <p className="font-bold text-slate-800 mb-3">{day.day}</p>
+                      <Card key={day.day} className="border border-border shadow-md p-6 text-center bg-card text-card-foreground flex flex-col justify-between">
+                        <p className="font-bold text-foreground mb-3">{day.day}</p>
                         <p className="text-4xl mb-4">{day.condition.split(" ")[0]}</p>
                         <div className="space-y-1 mb-3">
-                          <p className="text-sm text-slate-600">
-                            <span className="font-bold text-slate-900">{day.high}°C</span> / {day.low}°C
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-bold text-foreground">{day.high}°C</span> / {day.low}°C
                           </p>
-                          <p className="text-xs text-slate-500 font-medium">Rain: {day.rain}</p>
+                          <p className="text-xs text-muted-foreground font-medium">Rain: {day.rain}</p>
                         </div>
-                        <p className="text-xs text-slate-600 font-semibold bg-slate-50 py-1 rounded">{day.condition.split(" ").slice(1).join(" ")}</p>
+                        <p className="text-xs text-muted-foreground font-semibold bg-muted py-1 rounded">{day.condition.split(" ").slice(1).join(" ")}</p>
                       </Card>
                     ))}
                   </div>
                 </div>
 
                 {/* Best Time to Visit */}
-                <Card className="border-0 shadow-lg p-8 bg-gradient-to-br from-green-50 to-slate-50">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Best Time to Visit</h3>
-                  <p className="text-slate-700 mb-6 leading-relaxed">
+                <Card className="border border-green-100 dark:border-green-900/20 shadow-lg p-8 bg-gradient-to-br from-green-50/50 to-emerald-50/30 dark:from-green-950/20 dark:to-emerald-950/10">
+                  <h3 className="text-2xl font-bold text-foreground mb-4">Best Time to Visit</h3>
+                  <p className="text-foreground/90 mb-6 leading-relaxed">
                     {currentWeather.bestTime}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                      <p className="text-sm text-slate-500 mb-2 font-medium">Best Season</p>
-                      <p className="font-bold text-slate-900">{currentWeather.bestSeason}</p>
+                    <div className="bg-card text-card-foreground p-4 rounded-lg shadow-sm border border-border">
+                      <p className="text-sm text-muted-foreground mb-2 font-medium">Best Season</p>
+                      <p className="font-bold text-foreground">{currentWeather.bestSeason}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                      <p className="text-sm text-slate-500 mb-2 font-medium">Temperature Range</p>
-                      <p className="font-bold text-slate-900">{currentWeather.tempRange}</p>
+                    <div className="bg-card text-card-foreground p-4 rounded-lg shadow-sm border border-border">
+                      <p className="text-sm text-muted-foreground mb-2 font-medium">Temperature Range</p>
+                      <p className="font-bold text-foreground">{currentWeather.tempRange}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                      <p className="text-sm text-slate-500 mb-2 font-medium">Rainfall Level</p>
-                      <p className="font-bold text-slate-900">{currentWeather.rainfall}</p>
+                    <div className="bg-card text-card-foreground p-4 rounded-lg shadow-sm border border-border">
+                      <p className="text-sm text-muted-foreground mb-2 font-medium">Rainfall Level</p>
+                      <p className="font-bold text-foreground">{currentWeather.rainfall}</p>
                     </div>
                   </div>
                 </Card>
 
                 {/* Packing Recommendations */}
-                <Card className="border-0 shadow-lg p-8 bg-white">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6 border-b border-slate-100 pb-3">Packing Recommendations</h3>
+                <Card className="border border-border shadow-lg p-8 bg-card text-card-foreground">
+                  <h3 className="text-2xl font-bold text-foreground mb-6 border-b border-border pb-3">Packing Recommendations</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                      <h4 className="font-bold text-teal-600 mb-4">✓ Essentials Pack</h4>
-                      <ul className="space-y-3 text-slate-700">
+                      <h4 className="font-bold text-primary mb-4">✓ Essentials Pack</h4>
+                      <ul className="space-y-3 text-foreground/90">
                         {currentWeather.packingEssentials.map((item, idx) => (
                           <li key={idx} className="flex gap-2.5 items-start">
-                            <span className="text-teal-600 font-bold">✓</span>
+                            <span className="text-primary font-bold">✓</span>
                             <span>{item}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                     <div>
-                      <h4 className="font-bold text-slate-700 mb-4">• Optional / Useful Pack</h4>
-                      <ul className="space-y-3 text-slate-700">
+                      <h4 className="font-bold text-foreground mb-4">• Optional / Useful Pack</h4>
+                      <ul className="space-y-3 text-foreground/90">
                         {currentWeather.packingOptional.map((item, idx) => (
                           <li key={idx} className="flex gap-2.5 items-start">
-                            <span className="text-slate-400 font-bold">•</span>
+                            <span className="text-muted-foreground font-bold">•</span>
                             <span>{item}</span>
                           </li>
                         ))}
@@ -347,7 +364,7 @@ export default function WeatherForecast() {
                 </Card>
               </div>
             ) : (
-              <Card className="border-0 shadow-lg p-16 flex flex-col items-center justify-center bg-white text-slate-600">
+              <Card className="border border-border shadow-lg p-16 flex flex-col items-center justify-center bg-card text-card-foreground text-muted-foreground">
                 No weather forecast data found. Try searching for a registered destination (e.g. Goa, Kashmir, Paris).
               </Card>
             )}

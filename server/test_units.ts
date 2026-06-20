@@ -114,6 +114,36 @@ async function runTests() {
     console.error("❌ Valid auth schema failed to parse", err);
   }
 
+  try {
+    const invalidDataWithAdminRole = {
+      body: {
+        name: "John Doe",
+        email: "john@example.com",
+        password: "securePassword123",
+        role: "admin"
+      }
+    };
+    registerSchema.parse(invalidDataWithAdminRole);
+    console.error("❌ Invalid auth schema (role: admin) mistakenly passed parsing");
+  } catch (err) {
+    console.log("✅ Invalid auth schema (role: admin) correctly failed to parse");
+  }
+
+  try {
+    const invalidDataWithUserRole = {
+      body: {
+        name: "John Doe",
+        email: "john@example.com",
+        password: "securePassword123",
+        role: "user"
+      }
+    };
+    registerSchema.parse(invalidDataWithUserRole);
+    console.error("❌ Invalid auth schema (role: user) mistakenly passed parsing");
+  } catch (err) {
+    console.log("✅ Invalid auth schema (role: user) correctly failed to parse");
+  }
+
   // 5. Test Distance Calculator (Haversine Formula)
   console.log("\n5. Testing Haversine Distance Calculation...");
   const dist = calculateHaversineDistance(28.6139, 77.2090, 19.0760, 72.8777);
