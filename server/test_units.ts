@@ -1,5 +1,6 @@
 import { BadRequestError } from "./utils/errors";
-import { generateAccessToken, verifyAccessToken } from "./utils/jwt";
+import { generateAccessToken, verifyAccessToken, generateRefreshToken, verifyRefreshToken } from "./utils/jwt";
+import { cleanAndLimitSessions } from "./controllers/authController";
 import bcrypt from "bcryptjs";
 import { registerSchema } from "./validation/authValidation";
 import { createDestinationSchema, calculateRouteSchema } from "./validation/travelValidation";
@@ -340,6 +341,62 @@ async function runTests() {
     }
   } catch (err) {
     console.error("❌ Chat Mongoose schema test failed", err);
+  }
+
+  // 12. Test Refresh Token Lifecycle & Session Limits
+  console.log("\n12. Testing Refresh Token Session Limiting & FIFO Expulsion...");
+  try {
+    process.env.JWT_REFRESH_SECRET = "test_refresh_secret_key_1234567890";
+    
+    // Generate 6 valid refresh tokens with unique payloads to ensure unique signatures
+    const tokens: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      tokens.push(generateRefreshToken({ userId: "user_" + i, role: "user" }));
+    }
+    
+    // Ensure all 6 can be verified successfully
+    tokens.forEach((t, index) => {
+      const decoded = verifyRefreshToken(t);
+      if (decoded.userId !== "user_" + index) {
+        throw new Error(`Token ${index} verification failed`);
+      }
+    });
+    
+    // Test FIFO limit simulating 5 existing sessions and adding a 6th session
+    const existing = tokens.slice(0, 5);
+    const limited = cleanAndLimitSessions(existing, 5);
+    limited.push(tokens[5]);
+    
+    if (limited.length === 5) {
+      console.log("✅ Session limit enforced to exactly 5");
+    } else {
+      console.error("❌ Session limit failed to enforce. Got:", limited.length);
+    }
+    
+    // Verify FIFO ordering (oldest token removed)
+    if (limited[0] === tokens[1] && limited[4] === tokens[5] && !limited.includes(tokens[0])) {
+      console.log("✅ Oldest session (FIFO) correctly evicted");
+    } else {
+      console.error("❌ FIFO eviction failed: first token not evicted or order mismatch");
+    }
+    
+    // Test filtering of invalid/expired tokens
+    const mixedTokens = [
+      "invalid_token_1",
+      tokens[1],
+      "invalid_token_2",
+      tokens[2],
+      tokens[3],
+      "invalid_token_3"
+    ];
+    const cleaned = cleanAndLimitSessions(mixedTokens, 5);
+    if (cleaned.length === 3 && cleaned.includes(tokens[1]) && cleaned.includes(tokens[2]) && cleaned.includes(tokens[3])) {
+      console.log("✅ Expired/invalid tokens successfully filtered out");
+    } else {
+      console.error("❌ Token filtering failed. Got:", cleaned);
+    }
+  } catch (err) {
+    console.error("❌ Refresh token lifecycle test failed with error:", err);
   }
 }
 

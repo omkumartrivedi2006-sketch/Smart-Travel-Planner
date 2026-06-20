@@ -24,6 +24,24 @@ const getCleanUser = (user: any) => ({
   role: user.role,
 });
 
+// Helper to clean expired/invalid refresh tokens and enforce session limits (FIFO)
+export function cleanAndLimitSessions(tokens: string[], maxSessions?: number): string[] {
+  const validTokens: string[] = [];
+  for (const token of tokens) {
+    try {
+      verifyRefreshToken(token);
+      validTokens.push(token);
+    } catch {
+      // Token invalid or expired, skip it
+    }
+  }
+  if (maxSessions && validTokens.length >= maxSessions) {
+    const keepCount = maxSessions - 1;
+    return validTokens.slice(-keepCount);
+  }
+  return validTokens;
+}
+
 /**
  * Register User
  * POST /api/auth/register
@@ -52,6 +70,7 @@ export async function register(
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
+    newUser.refreshTokens = cleanAndLimitSessions(newUser.refreshTokens, 5);
     newUser.refreshTokens.push(refreshToken);
     await newUser.save();
 
@@ -92,6 +111,7 @@ export async function login(
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
+    user.refreshTokens = cleanAndLimitSessions(user.refreshTokens, 5);
     user.refreshTokens.push(refreshToken);
     await user.save();
 
@@ -194,8 +214,9 @@ export async function refresh(
       throw new ForbiddenError("Token reuse detected. All sessions revoked.");
     }
 
-    // Filter out used token
-    user.refreshTokens = user.refreshTokens.filter((token) => token !== refreshToken);
+    // Filter out used token and clean other sessions
+    const activeTokens = user.refreshTokens.filter((token) => token !== refreshToken);
+    user.refreshTokens = cleanAndLimitSessions(activeTokens, 5);
 
     // Generate new tokens
     const payload = { userId: user._id.toString(), role: user.role };
