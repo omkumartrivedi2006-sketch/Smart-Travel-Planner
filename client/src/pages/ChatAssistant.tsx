@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 // =============================================================================
 // DESTINATION DATABASE (50 SAMPLE DESTINATIONS)
@@ -486,6 +487,7 @@ export default function ChatAssistant() {
   ]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [sessionId, setSessionId] = useState<string>("");
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatCardRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -497,8 +499,122 @@ export default function ChatAssistant() {
     }
   }, [messages, isTyping]);
 
-  // Parse URL search parameters on mount
+  // Load history on mount
   useEffect(() => {
+    async function loadHistory() {
+      try {
+        const res = await apiFetch("/api/chat/history");
+        if (res && res.data) {
+          if (res.data.session) {
+            setSessionId(res.data.session);
+          }
+          if (res.data.messages && res.data.messages.length > 0) {
+            const mapped: RichMessage[] = res.data.messages.map((m: any, idx: number) => {
+              const content = m.content;
+              const queryLower = content.toLowerCase();
+              let type: "destinations" | "itinerary" | "budget" | "weather" | "text" = "text";
+              let destinations: Destination[] = [];
+              let itinerary: ItineraryDay[] = [];
+              let budget: BudgetBreakdown | undefined;
+              let weather: WeatherReport | undefined;
+
+              if (m.role === "model") {
+                if (queryLower.includes("5-day forecast") || queryLower.includes("weather forecast") || queryLower.includes("forecast for")) {
+                  type = "weather";
+                  const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
+                  const isCold = matchingCity.category === "Mountain" || matchingCity.name.includes("Alps") || matchingCity.name.includes("Manali") || matchingCity.name.includes("Shimla") || matchingCity.name.includes("Ladakh");
+                  weather = {
+                    summary: isCold ? "Cold & Snowy, crisp alpine breezes" : "Warm & Tropical, pleasant coastal winds",
+                    temp: isCold ? "6°C" : "28°C",
+                    packingList: isCold
+                      ? ["Thermal innerwear layers", "Heavy wool sweaters/jackets", "Moisture-wicking socks & snow boots", "Polarized ski goggles / sunglasses"]
+                      : ["Breathable cotton shirts/shorts", "Sunglasses & Sunscreen (SPF 50+)", "Swimwear and flip-flops", "Comfortable walking sneakers"],
+                    tips: isCold
+                      ? ["Wear layers to adjust to heating indoors.", "Stay hydrated—cold dry air dries throat fast.", "Keep power banks close as cold drains phone batteries."]
+                      : ["Stay hydrated, carry water bottles everywhere.", "Protect against sunburn—UV index is high.", "Pack insect repellent for forest treks."],
+                  };
+                } else if (queryLower.includes("3-day itinerary") || queryLower.includes("itinerary for") || queryLower.includes("day 1:")) {
+                  type = "itinerary";
+                  const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
+                  itinerary = [
+                    {
+                      day: "Day 1: Arrival & Exploring Heritage Landmarks",
+                      activities: [
+                        "Morning: Check-in at accommodation and explore the nearby cafes.",
+                        "Afternoon: Head directly to the main heritage zone: " + matchingCity.attractions[0],
+                        "Evening: Enjoy dinner and local delicacies at a top rated restaurant."
+                      ],
+                      attractions: [matchingCity.attractions[0], "Local Spice/Artisan Market"],
+                      travelTime: "25 mins local transit",
+                      food: "Local signature dishes (Average cost: ₹600 per meal)",
+                      cost: "₹1,200 (attractions & taxi)",
+                    },
+                    {
+                      day: "Day 2: Adventure Activities & Nature Walk",
+                      activities: [
+                        "Morning: Trek or take local tour to " + (matchingCity.attractions[1] || "Nature Reserves"),
+                        "Afternoon: Engage in local activities (water sports / skiing / sightseeing)",
+                        "Evening: Sunset photography session and souvenir shopping"
+                      ],
+                      attractions: [matchingCity.attractions[1] || "Scenic Viewpoints", "Handicrafts hub"],
+                      travelTime: "45 mins roundtrip drive",
+                      food: "Authentic local eateries (Average cost: ₹500 per meal)",
+                      cost: "₹2,500 (rafting / pass fees & rental gear)",
+                    },
+                    {
+                      day: "Day 3: Scenic Leisure & Departure",
+                      activities: [
+                        "Morning: Enjoy sunrise views at " + (matchingCity.attractions[2] || "lakeside / valley valley"),
+                        "Afternoon: Pack up bags, buy specialty local foods/teas/spices",
+                        "Evening: Airport shuttle ride for departure flight"
+                      ],
+                      attractions: [matchingCity.attractions[2] || "Quiet local gardens"],
+                      travelTime: "1 hour airport transit",
+                      food: "Lakeside/Cafeteria brunch (Average cost: ₹450)",
+                      cost: "₹800 (shopping & transit)",
+                    }
+                  ];
+                } else if (queryLower.includes("budget advice") || queryLower.includes("daily base cost") || queryLower.includes("saving tips")) {
+                  type = "budget";
+                  const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
+                  let multiplier = 1;
+                  if (matchingCity.budgetTier === "Luxury") multiplier = 2.5;
+                  else if (matchingCity.budgetTier === "Mid-range") multiplier = 1.6;
+                  budget = {
+                    transport: "₹" + Math.round(12000 * multiplier).toLocaleString(),
+                    hotel: "₹" + Math.round(15000 * multiplier).toLocaleString(),
+                    food: "₹" + Math.round(7000 * multiplier).toLocaleString(),
+                    activities: "₹" + Math.round(5000 * multiplier).toLocaleString(),
+                    misc: "₹" + Math.round(3000 * multiplier).toLocaleString(),
+                    total: "₹" + Math.round(42000 * multiplier).toLocaleString(),
+                  };
+                } else if (queryLower.includes("recommend these top destinations") || queryLower.includes("spotlight:")) {
+                  type = "destinations";
+                  destinations = findMatchingDestinations(content);
+                }
+              }
+
+              return {
+                id: idx,
+                text: content,
+                sender: m.role === "user" ? "user" : "ai",
+                timestamp: new Date(m.timestamp || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                type,
+                destinations,
+                itinerary,
+                budget,
+                weather,
+              };
+            });
+            setMessages(mapped);
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to load history", err);
+      }
+    }
+    loadHistory();
+
     const params = new URLSearchParams(window.location.search);
     const topicParam = params.get("topic");
     if (topicParam) {
@@ -558,7 +674,7 @@ export default function ChatAssistant() {
   };
 
   // Generate smart response based on query
-  const handleTriggerAIQuery = (queryText: string) => {
+  const handleTriggerAIQuery = async (queryText: string) => {
     // Scroll chat area card into center view smoothly (avoids getting stuck at page bottom)
     setTimeout(() => {
       chatCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -575,167 +691,138 @@ export default function ChatAssistant() {
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
 
-    setTimeout(() => {
-      const queryLower = queryText.toLowerCase();
-      let responseText = "";
-      let type: "destinations" | "itinerary" | "budget" | "weather" | "text" = "text";
-      let destinations: Destination[] = [];
-      let itinerary: ItineraryDay[] = [];
-      let budget: BudgetBreakdown | undefined;
-      let weather: WeatherReport | undefined;
+    try {
+      const res = await apiFetch("/api/chat/message", {
+        method: "POST",
+        body: JSON.stringify({
+          message: queryText,
+          session: sessionId,
+        }),
+      });
 
-      // 1. Check Itinerary Generation Trigger: "plan my trip", "itinerary", "plan a trip"
-      if (queryLower.includes("plan my trip") || queryLower.includes("itinerary") || queryLower.includes("plan a trip to") || queryLower.includes("plan trip")) {
-        type = "itinerary";
-        // Extract city from query or choose a default
-        const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
-        responseText = `Here is a customized 3-day itinerary for **${matchingCity.name}** containing activities, dining suggestions, and cost estimates:`;
-        
-        itinerary = [
-          {
-            day: "Day 1: Arrival & Exploring Heritage Landmarks",
-            activities: [
-              "Morning: Check-in at accommodation and explore the nearby cafes.",
-              "Afternoon: Head directly to the main heritage zone: " + matchingCity.attractions[0],
-              "Evening: Enjoy dinner and local delicacies at a top rated restaurant."
-            ],
-            attractions: [matchingCity.attractions[0], "Local Spice/Artisan Market"],
-            travelTime: "25 mins local transit",
-            food: "Local signature dishes (Average cost: ₹600 per meal)",
-            cost: "₹1,200 (attractions & taxi)",
-          },
-          {
-            day: "Day 2: Adventure Activities & Nature Walk",
-            activities: [
-              "Morning: Trek or take local tour to " + (matchingCity.attractions[1] || "Nature Reserves"),
-              "Afternoon: Engage in local activities (water sports / skiing / sightseeing)",
-              "Evening: Sunset photography session and souvenir shopping"
-            ],
-            attractions: [matchingCity.attractions[1] || "Scenic Viewpoints", "Handicrafts hub"],
-            travelTime: "45 mins roundtrip drive",
-            food: "Authentic local eateries (Average cost: ₹500 per meal)",
-            cost: "₹2,500 (rafting / pass fees & rental gear)",
-          },
-          {
-            day: "Day 3: Scenic Leisure & Departure",
-            activities: [
-              "Morning: Enjoy sunrise views at " + (matchingCity.attractions[2] || "lakeside / valley valley"),
-              "Afternoon: Pack up bags, buy specialty local foods/teas/spices",
-              "Evening: Airport shuttle ride for departure flight"
-            ],
-            attractions: [matchingCity.attractions[2] || "Quiet local gardens"],
-            travelTime: "1 hour airport transit",
-            food: "Lakeside/Cafeteria brunch (Average cost: ₹450)",
-            cost: "₹800 (shopping & transit)",
-          }
-        ];
-      }
-      // 2. Check Budget Calculator Card: "budget", "cost", "how much", "calculate budget"
-      else if (queryLower.includes("budget") || queryLower.includes("cost") || queryLower.includes("price") || queryLower.includes("how much") || queryLower.includes("rupee")) {
-        type = "budget";
-        const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
-        
-        let multiplier = 1;
-        if (matchingCity.budgetTier === "Luxury") multiplier = 2.5;
-        else if (matchingCity.budgetTier === "Mid-range") multiplier = 1.6;
+      if (res && res.data) {
+        const replyText = res.data.reply;
+        const newSession = res.data.session;
+        if (newSession && newSession !== sessionId) {
+          setSessionId(newSession);
+        }
 
-        responseText = `Here is a smart estimated budget breakdown for a 5-day trip to **${matchingCity.name}** (per person):`;
-        
-        budget = {
-          transport: "₹" + Math.round(12000 * multiplier).toLocaleString(),
-          hotel: "₹" + Math.round(15000 * multiplier).toLocaleString(),
-          food: "₹" + Math.round(7000 * multiplier).toLocaleString(),
-          activities: "₹" + Math.round(5000 * multiplier).toLocaleString(),
-          misc: "₹" + Math.round(3000 * multiplier).toLocaleString(),
-          total: "₹" + Math.round(42000 * multiplier).toLocaleString(),
+        const queryLower = queryText.toLowerCase();
+        let type: "destinations" | "itinerary" | "budget" | "weather" | "text" = "text";
+        let destinations: Destination[] = [];
+        let itinerary: ItineraryDay[] = [];
+        let budget: BudgetBreakdown | undefined;
+        let weather: WeatherReport | undefined;
+
+        // Apply same keyword patterns to show cards matching the text responses
+        if (queryLower.includes("plan my trip") || queryLower.includes("itinerary") || queryLower.includes("plan a trip to") || queryLower.includes("plan trip")) {
+          type = "itinerary";
+          const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
+          itinerary = [
+            {
+              day: "Day 1: Arrival & Exploring Heritage Landmarks",
+              activities: [
+                "Morning: Check-in at accommodation and explore the nearby cafes.",
+                "Afternoon: Head directly to the main heritage zone: " + matchingCity.attractions[0],
+                "Evening: Enjoy dinner and local delicacies at a top rated restaurant."
+              ],
+              attractions: [matchingCity.attractions[0], "Local Spice/Artisan Market"],
+              travelTime: "25 mins local transit",
+              food: "Local signature dishes (Average cost: ₹600 per meal)",
+              cost: "₹1,200 (attractions & taxi)",
+            },
+            {
+              day: "Day 2: Adventure Activities & Nature Walk",
+              activities: [
+                "Morning: Trek or take local tour to " + (matchingCity.attractions[1] || "Nature Reserves"),
+                "Afternoon: Engage in local activities (water sports / skiing / sightseeing)",
+                "Evening: Sunset photography session and souvenir shopping"
+              ],
+              attractions: [matchingCity.attractions[1] || "Scenic Viewpoints", "Handicrafts hub"],
+              travelTime: "45 mins roundtrip drive",
+              food: "Authentic local eateries (Average cost: ₹500 per meal)",
+              cost: "₹2,500 (rafting / pass fees & rental gear)",
+            },
+            {
+              day: "Day 3: Scenic Leisure & Departure",
+              activities: [
+                "Morning: Enjoy sunrise views at " + (matchingCity.attractions[2] || "lakeside / valley valley"),
+                "Afternoon: Pack up bags, buy specialty local foods/teas/spices",
+                "Evening: Airport shuttle ride for departure flight"
+              ],
+              attractions: [matchingCity.attractions[2] || "Quiet local gardens"],
+              travelTime: "1 hour airport transit",
+              food: "Lakeside/Cafeteria brunch (Average cost: ₹450)",
+              cost: "₹800 (shopping & transit)",
+            }
+          ];
+        } else if (queryLower.includes("budget") || queryLower.includes("cost") || queryLower.includes("price") || queryLower.includes("how much") || queryLower.includes("rupee")) {
+          type = "budget";
+          const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
+          let multiplier = 1;
+          if (matchingCity.budgetTier === "Luxury") multiplier = 2.5;
+          else if (matchingCity.budgetTier === "Mid-range") multiplier = 1.6;
+          budget = {
+            transport: "₹" + Math.round(12000 * multiplier).toLocaleString(),
+            hotel: "₹" + Math.round(15000 * multiplier).toLocaleString(),
+            food: "₹" + Math.round(7000 * multiplier).toLocaleString(),
+            activities: "₹" + Math.round(5000 * multiplier).toLocaleString(),
+            misc: "₹" + Math.round(3000 * multiplier).toLocaleString(),
+            total: "₹" + Math.round(42000 * multiplier).toLocaleString(),
+          };
+        } else if (queryLower.includes("weather") || queryLower.includes("temp") || queryLower.includes("forecast") || queryLower.includes("pack") || queryLower.includes("clothing")) {
+          type = "weather";
+          const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
+          const isCold = matchingCity.category === "Mountain" || matchingCity.name.includes("Alps") || matchingCity.name.includes("Manali") || matchingCity.name.includes("Shimla") || matchingCity.name.includes("Ladakh");
+          weather = {
+            summary: isCold ? "Cold & Snowy, crisp alpine breezes" : "Warm & Tropical, pleasant coastal winds",
+            temp: isCold ? "6°C" : "28°C",
+            packingList: isCold
+              ? ["Thermal innerwear layers", "Heavy wool sweaters/jackets", "Moisture-wicking socks & snow boots", "Polarized ski goggles / sunglasses"]
+              : ["Breathable cotton shirts/shorts", "Sunglasses & Sunscreen (SPF 50+)", "Swimwear and flip-flops", "Comfortable walking sneakers"],
+            tips: isCold
+              ? ["Wear layers to adjust to heating indoors.", "Stay hydrated—cold dry air dries throat fast.", "Keep power banks close as cold drains phone batteries."]
+              : ["Stay hydrated, carry water bottles everywhere.", "Protect against sunburn—UV index is high.", "Pack insect repellent for forest treks."],
+          };
+        } else if (
+          queryLower.includes("recommend") ||
+          queryLower.includes("where to go") ||
+          queryLower.includes("beach") ||
+          queryLower.includes("adventure") ||
+          queryLower.includes("mountain") ||
+          queryLower.includes("honeymoon") ||
+          queryLower.includes("solo") ||
+          queryLower.includes("family") ||
+          queryLower.includes("budget") ||
+          queryLower.includes("luxury") ||
+          queryLower.includes("weekend") ||
+          queryLower.includes("international") ||
+          queryLower.includes("trip ideas")
+        ) {
+          type = "destinations";
+          destinations = findMatchingDestinations(queryText);
+        }
+
+        const aiMsg: RichMessage = {
+          id: Date.now() + 1,
+          text: replyText,
+          sender: "ai",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          type,
+          destinations,
+          itinerary,
+          budget,
+          weather,
         };
-      }
-      // 3. Check Weather & Packing Assistant Card: "weather", "temp", "packing"
-      else if (queryLower.includes("weather") || queryLower.includes("temp") || queryLower.includes("forecast") || queryLower.includes("pack") || queryLower.includes("clothing")) {
-        type = "weather";
-        const matchingCity = DESTINATIONS_DB.find(d => queryLower.includes(d.name.toLowerCase())) || DESTINATIONS_DB[0];
-        
-        responseText = `Here is the current weather forecast and essential packing checklist for **${matchingCity.name}**:`;
-        
-        const isCold = matchingCity.category === "Mountain" || matchingCity.name.includes("Alps") || matchingCity.name.includes("Manali") || matchingCity.name.includes("Shimla") || matchingCity.name.includes("Ladakh");
-        
-        weather = {
-          summary: isCold ? "Cold & Snowy, crisp alpine breezes" : "Warm & Tropical, pleasant coastal winds",
-          temp: isCold ? "6°C" : "28°C",
-          packingList: isCold
-            ? ["Thermal innerwear layers", "Heavy wool sweaters/jackets", "Moisture-wicking socks & snow boots", "Polarized ski goggles / sunglasses"]
-            : ["Breathable cotton shirts/shorts", "Sunglasses & Sunscreen (SPF 50+)", "Swimwear and flip-flops", "Comfortable walking sneakers"],
-          tips: isCold
-            ? ["Wear layers to adjust to heating indoors.", "Stay hydrated—cold dry air dries throat fast.", "Keep power banks close as cold drains phone batteries."]
-            : ["Stay hydrated, carry water bottles everywhere.", "Protect against sunburn—UV index is high.", "Pack insect repellent for forest treks."],
-        };
-      }
-      // 4. Recommendation lists: "recommend", "where to go", "beach", "adventure", "mountain", "honeymoon", "solo", "family", "budget travel", "luxury travel"
-      else if (
-        queryLower.includes("recommend") ||
-        queryLower.includes("where to go") ||
-        queryLower.includes("beach") ||
-        queryLower.includes("adventure") ||
-        queryLower.includes("mountain") ||
-        queryLower.includes("honeymoon") ||
-        queryLower.includes("solo") ||
-        queryLower.includes("family") ||
-        queryLower.includes("budget") ||
-        queryLower.includes("luxury") ||
-        queryLower.includes("weekend") ||
-        queryLower.includes("international") ||
-        queryLower.includes("trip ideas")
-      ) {
-        type = "destinations";
-        destinations = findMatchingDestinations(queryText);
-        responseText = `Based on your request, I recommend these top destinations. Click on any card to view details:`;
-      }
-      // 5. Visa, Safety & Smart Text answers
-      else if (queryLower.includes("visa") || queryLower.includes("passport")) {
-        responseText = `### 🛂 Visa Guidance System
-- **Indian Destinations**: No visa required for domestic travelers! Carry standard ID cards (Aadhaar, Voter ID).
-- **International Destinations (E-Visa / Visa-free)**: Thailand, Vietnam, Maldives, and Dubai offer E-Visas or Visa-on-Arrival for Indian passport holders.
-- **Schengen Visa Required**: Switzerland, Rome, and Spain require a pre-applied Schengen Visa. Ensure your passport is valid for at least 6 months past your travel dates.`;
-      }
-      else if (queryLower.includes("safety") || queryLower.includes("safe")) {
-        responseText = `### 🛡️ Travel Safety Guidelines
-1. **Documents**: Store digital copies of your passport, tickets, and visas in secure cloud storage.
-2. **Emergency Numbers**: Keep local emergency numbers and embassy contacts handy on your phone.
-3. **Medical kit**: Carry standard medicines for allergies, stomach aches, and pain relief.
-4. **Local Laws**: Respect religious dress codes at temples (e.g. in Bali or Kyoto).`;
-      }
-      else if (queryLower.includes("food") || queryLower.includes("eat")) {
-        responseText = `### 🍲 Food & Culinary Recommendations
-- **Goa**: Traditional Goan Fish Curry, Vindaloo, and Bebinca dessert.
-- **Madrid**: Tapas crawls, churros dipped in chocolate, and classic Paella.
-- **Tokyo**: Authentic Ramen bars, fresh sushi counters, and Takoyaki street snacks.
-- **Bali**: Nasi Goreng, Babi Guling, and fresh organic fruit bowls.`;
-      }
-      else {
-        // Fallback detailed reply
-        responseText = `I can help you plan your next trip! Here are a few ways we can get started:
-        
-- ✈️ Tell me **"Plan my trip to Kashmir"** to generate a daily itinerary.
-- 💰 Ask **"What is the cost of a trip to Bali?"** to calculate custom travel budgets.
-- 🌤️ Ask **"Weather in Shimla"** to fetch forecast summaries and custom packing tips.
-- 🧭 Tap any of the **Quick Actions** in the left sidebar to filter top destinations.`;
-      }
 
-      const aiMsg: RichMessage = {
-        id: Date.now() + 1,
-        text: responseText,
-        sender: "ai",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        type,
-        destinations,
-        itinerary,
-        budget,
-        weather,
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
+        setMessages((prev) => [...prev, aiMsg]);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to talk to travel assistant.");
+    } finally {
       setIsTyping(false);
-    }, 1200);
+    }
   };
 
   const handleSendMessage = () => {
@@ -1180,7 +1267,22 @@ export default function ChatAssistant() {
                 <Button
                   variant="outline"
                   className="flex-1 border border-red-200 text-red-600 hover:bg-red-50 font-sans font-medium h-11 rounded-xl shadow-sm cursor-pointer"
-                  onClick={() => setMessages([{ id: 1, text: "Hi! I'm your AI travel assistant. How can I help you plan your trip today?", sender: "ai", timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), type: "text" }])}
+                  onClick={async () => {
+                    try {
+                      await apiFetch("/api/chat/history", { method: "DELETE" });
+                      setMessages([{
+                        id: 1,
+                        text: "Hi! I am your AI Travel Copilot. Tap any Quick Action on the left or type your destination in the box, and I'll generate itineraries, budgets, and recommendations instantly!",
+                        sender: "ai",
+                        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                        type: "text",
+                      }]);
+                      setSessionId("");
+                      toast.success("Chat history cleared!");
+                    } catch (err: any) {
+                      toast.error("Failed to clear chat log.");
+                    }
+                  }}
                 >
                   Clear Chat Logs
                 </Button>

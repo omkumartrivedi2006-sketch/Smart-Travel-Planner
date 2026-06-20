@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { Cloud, Droplets, Wind, Eye, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 interface WeatherData {
   city: string;
@@ -25,183 +26,94 @@ interface WeatherData {
   packingOptional: string[];
 }
 
-const WEATHER_DB: Record<string, WeatherData> = {
-  bali: {
-    city: "Bali",
-    country: "Indonesia",
-    temp: 28,
-    condition: "Partly Cloudy",
-    icon: "⛅",
-    humidity: 75,
-    windSpeed: 12,
-    visibility: 10,
-    uvIndex: 8,
-    forecast: [
-      { day: "Monday", high: 30, low: 24, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Tuesday", high: 29, low: 23, condition: "⛅ Partly Cloudy", rain: "10%" },
-      { day: "Wednesday", high: 27, low: 22, condition: "🌧️ Rainy", rain: "80%" },
-      { day: "Thursday", high: 28, low: 23, condition: "☀️ Sunny", rain: "5%" },
-      { day: "Friday", high: 29, low: 24, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Saturday", high: 30, low: 25, condition: "⛅ Partly Cloudy", rain: "15%" },
-      { day: "Sunday", high: 28, low: 23, condition: "🌧️ Shower", rain: "60%" },
-    ],
-    bestTime: "Based on weather patterns, the best time to visit Bali is from April to October when the weather is dry and sunny. Avoid the rainy season from November to March.",
-    bestSeason: "Dry Season (Apr-Oct)",
-    tempRange: "26-30°C",
-    rainfall: "Minimal / Low",
-    packingEssentials: ["Light, breathable cotton clothing", "Sunscreen (SPF 50+)", "Hat and polarized sunglasses", "Comfortable beachwear"],
-    packingOptional: ["Light rain jacket", "Insect repellent", "Sturdy hiking shoes for volcanoes", "Waterproof dry bag"],
-  },
-  switzerland: {
-    city: "Swiss Alps",
-    country: "Switzerland",
-    temp: 6,
-    condition: "Snowy",
-    icon: "❄️",
-    humidity: 85,
-    windSpeed: 22,
-    visibility: 6,
-    uvIndex: 3,
-    forecast: [
-      { day: "Monday", high: 7, low: 2, condition: "❄️ Light Snow", rain: "40%" },
-      { day: "Tuesday", high: 5, low: 0, condition: "❄️ Heavy Snow", rain: "90%" },
-      { day: "Wednesday", high: 4, low: -2, condition: "❄️ Snowy", rain: "80%" },
-      { day: "Thursday", high: 8, low: 1, condition: "⛅ Partly Cloudy", rain: "10%" },
-      { day: "Friday", high: 9, low: 3, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Saturday", high: 7, low: 2, condition: "⛅ Cloudy", rain: "20%" },
-      { day: "Sunday", high: 6, low: 0, condition: "❄️ Flurries", rain: "50%" },
-    ],
-    bestTime: "For skiing and winter sports, visit between December and March. For hiking, alpine meadows, and pleasant sightseeing, June to September is absolutely stunning.",
-    bestSeason: "Dec-Apr / Jun-Sep",
-    tempRange: "-5 to 15°C",
-    rainfall: "Moderate (Snow)",
-    packingEssentials: ["Thermal base layers", "Insulated waterproof ski jacket", "Gloves, warm beanies, and wool socks", "Sunscreen (high altitude UV)"],
-    packingOptional: ["Hiking poles", "Goggles / snow sunglasses", "Moisture-wicking activewear", "Lip balm with SPF"],
-  },
-  spain: {
-    city: "Madrid",
-    country: "Spain",
-    temp: 18,
-    condition: "Sunny",
-    icon: "☀️",
-    humidity: 45,
-    windSpeed: 8,
-    visibility: 10,
-    uvIndex: 6,
-    forecast: [
-      { day: "Monday", high: 20, low: 11, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Tuesday", high: 19, low: 10, condition: "☀️ Sunny", rain: "5%" },
-      { day: "Wednesday", high: 17, low: 8, condition: "⛅ Partly Cloudy", rain: "10%" },
-      { day: "Thursday", high: 18, low: 9, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Friday", high: 21, low: 12, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Saturday", high: 22, low: 13, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Sunday", high: 19, low: 10, condition: "🌧️ Showers", rain: "40%" },
-    ],
-    bestTime: "The best times to visit Madrid are in the spring (March to May) or autumn (September to November) when the weather is mild, pleasant, and perfect for walking tours.",
-    bestSeason: "Spring / Autumn",
-    tempRange: "10-22°C",
-    rainfall: "Very Low",
-    packingEssentials: ["Light jacket or trench coat", "Comfortable walking sneakers", "Stylish smart-casual outfits", "Travel sunglasses"],
-    packingOptional: ["Small compact umbrella", "Crossbody anti-theft bag", "Reusable water bottle", "Cardigan for breezy nights"],
-  },
-  tokyo: {
-    city: "Tokyo",
-    country: "Japan",
-    temp: 16,
-    condition: "Clear",
-    icon: "☀️",
-    humidity: 50,
-    windSpeed: 10,
-    visibility: 10,
-    uvIndex: 5,
-    forecast: [
-      { day: "Monday", high: 18, low: 11, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Tuesday", high: 17, low: 10, condition: "⛅ Partly Cloudy", rain: "10%" },
-      { day: "Wednesday", high: 15, low: 8, condition: "🌧️ Rain", rain: "70%" },
-      { day: "Thursday", high: 16, low: 9, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Friday", high: 18, low: 12, condition: "☀️ Sunny", rain: "0%" },
-      { day: "Saturday", high: 19, low: 11, condition: "⛅ Partly Cloudy", rain: "15%" },
-      { day: "Sunday", high: 17, low: 10, condition: "☀️ Sunny", rain: "0%" },
-    ],
-    bestTime: "Spring (March to May) for cherry blossoms, and Autumn (September to November) for colorful foliage and comfortable, crisp outdoor walking weather.",
-    bestSeason: "Spring / Autumn",
-    tempRange: "8-20°C",
-    rainfall: "Moderate",
-    packingEssentials: ["Slip-on shoes (for temple visits)", "Light layering sweaters", "Comfortable walking shoes", "Travel power bank"],
-    packingOptional: ["Folding umbrella", "Hand sanitizer / wet wipes", "Coin pouch for cash transactions", "Fleece pullover"],
-  },
+const getDayName = (dateStr: string) => {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return days[new Date(dateStr).getDay()];
+};
+
+const getWeatherIcon = (cond: string) => {
+  const c = cond.toLowerCase();
+  if (c.includes("sun") || c.includes("clear")) return "☀️";
+  if (c.includes("rain") || c.includes("drizzle") || c.includes("shower")) return "🌧️";
+  if (c.includes("snow")) return "❄️";
+  if (c.includes("wind") || c.includes("breeze")) return "💨";
+  return "⛅";
 };
 
 export default function WeatherForecast() {
   const [, navigate] = useLocation();
-  const [searchQuery, setSearchQuery] = useState("Bali");
-  const [currentWeather, setCurrentWeather] = useState<WeatherData>(WEATHER_DB.bali);
+  const [searchQuery, setSearchQuery] = useState("Goa");
+  const [currentWeather, setCurrentWeather] = useState<WeatherData | null>(null);
   const [travelDate, setTravelDate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Parse URL search parameters on mount
+  // Parse URL search parameters on mount or fetch default Goa weather
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const destParam = params.get("destination");
     if (destParam) {
       setSearchQuery(destParam);
       handleSearchWeather(destParam);
+    } else {
+      handleSearchWeather("Goa");
     }
   }, []);
 
-  const handleSearchWeather = (queryStr?: string) => {
-    const target = (queryStr || searchQuery).trim().toLowerCase();
+  const handleSearchWeather = async (queryStr?: string) => {
+    const target = (queryStr || searchQuery).trim();
     if (!target) {
       toast.error("Please enter a city or destination");
       return;
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      // Lookup in DB
-      let foundData: WeatherData | undefined;
-
-      if (target.includes("bali")) foundData = WEATHER_DB.bali;
-      else if (target.includes("alps") || target.includes("swiss") || target.includes("switzerland")) foundData = WEATHER_DB.switzerland;
-      else if (target.includes("madrid") || target.includes("spain")) foundData = WEATHER_DB.spain;
-      else if (target.includes("tokyo") || target.includes("japan")) foundData = WEATHER_DB.tokyo;
-
-      if (foundData) {
-        setCurrentWeather(foundData);
-        toast.success(`Weather details updated for ${foundData.city}!`);
-      } else {
-        // Mock fallback weather for general cities
-        const generalMock: WeatherData = {
-          city: searchQuery,
-          country: "Explore",
-          temp: 22,
-          condition: "Partly Cloudy",
-          icon: "⛅",
-          humidity: 60,
-          windSpeed: 15,
-          visibility: 10,
-          uvIndex: 5,
-          forecast: [
-            { day: "Monday", high: 24, low: 15, condition: "☀️ Sunny", rain: "0%" },
-            { day: "Tuesday", high: 22, low: 14, condition: "⛅ Partly Cloudy", rain: "10%" },
-            { day: "Wednesday", high: 21, low: 13, condition: "🌧️ Showers", rain: "40%" },
-            { day: "Thursday", high: 23, low: 15, condition: "☀️ Sunny", rain: "0%" },
-            { day: "Friday", high: 25, low: 16, condition: "☀️ Sunny", rain: "0%" },
-            { day: "Saturday", high: 24, low: 15, condition: "⛅ Cloudy", rain: "20%" },
-            { day: "Sunday", high: 22, low: 14, condition: "🌧️ Light Rain", rain: "30%" },
+    try {
+      const res = await apiFetch(`/api/weather/${encodeURIComponent(target)}`);
+      if (res && res.data && res.data.weather) {
+        const weather = res.data.weather;
+        const mapped: WeatherData = {
+          city: res.data.destination,
+          country: res.data.country,
+          temp: Math.round(weather.temperature),
+          condition: weather.condition,
+          icon: getWeatherIcon(weather.condition),
+          humidity: weather.humidity || 60,
+          windSpeed: weather.windSpeed || 10,
+          visibility: weather.visibility || 10,
+          uvIndex: weather.uvIndex || 6,
+          forecast: weather.forecast.map((f: any) => ({
+            day: getDayName(f.date),
+            high: Math.round(f.temperature + 2),
+            low: Math.round(f.temperature - 2),
+            condition: `${getWeatherIcon(f.condition)} ${f.condition}`,
+            rain: f.condition.toLowerCase().includes("rain") ? "70%" : f.condition.toLowerCase().includes("snow") ? "50%" : "10%",
+          })),
+          bestTime: `The best time to visit ${res.data.destination} is during transitional months or dry seasons when temperatures are pleasant.`,
+          bestSeason: weather.temperature < 15 ? "Winter Sports / Snowy Season" : "Dry / Mild Season",
+          tempRange: `${Math.round(weather.temperature - 6)}-${Math.round(weather.temperature + 6)}°C`,
+          rainfall: weather.condition.toLowerCase().includes("rain") ? "High" : "Low / Moderate",
+          packingEssentials: [
+            "Breathable cotton clothing or warm layers",
+            "Sunscreen (SPF 50+) & Polarized sunglasses",
+            "Comfortable city walking sneakers",
+            "Hat or travel cap"
           ],
-          bestTime: `The best time to visit ${searchQuery} is during transitional seasons for mild temperatures and pleasant outdoor walks.`,
-          bestSeason: "Spring / Autumn",
-          tempRange: "14-25°C",
-          rainfall: "Low / Moderate",
-          packingEssentials: ["Comfortable outfits", "Versatile layering items", "Sunscreen & Sunglasses", "Sturdy walking shoes"],
-          packingOptional: ["Travel umbrella", "Emergency medical kit", "Camera gear", "Light cardigan"],
+          packingOptional: [
+            "Compact pocket umbrella",
+            "Light rain jacket / windbreaker",
+            "Travel power bank",
+            "Insect repellent"
+          ]
         };
-        setCurrentWeather(generalMock);
-        toast.success(`Weather details generated for ${searchQuery}!`);
+        
+        setCurrentWeather(mapped);
+        toast.success(`Weather details updated for ${mapped.city}!`);
       }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to search weather. Please make sure the destination exists in our records.");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -211,8 +123,21 @@ export default function WeatherForecast() {
   };
 
   const handleAddToTrip = () => {
-    navigate(`/planner?destination=${encodeURIComponent(currentWeather.city)}`);
+    if (currentWeather) {
+      navigate(`/planner?destination=${encodeURIComponent(currentWeather.city)}`);
+    }
   };
+
+  if (!currentWeather && !isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <p className="text-lg text-slate-600 font-medium mb-4">No weather details loaded.</p>
+        <Button onClick={() => handleSearchWeather("Goa")} className="bg-teal-600 hover:bg-teal-700 text-white">
+          Load Default Location
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">
@@ -272,13 +197,19 @@ export default function WeatherForecast() {
                     variant="outline"
                     className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start"
                     onClick={handleAddToTrip}
+                    disabled={!currentWeather}
                   >
                     Add to Trip
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 justify-start"
-                    onClick={() => navigate(`/chat-assistant?topic=packing%20tips%20for%20${encodeURIComponent(currentWeather.city)}`)}
+                    onClick={() => {
+                      if (currentWeather) {
+                        navigate(`/chat-assistant?topic=packing%20tips%20for%20${encodeURIComponent(currentWeather.city)}`);
+                      }
+                    }}
+                    disabled={!currentWeather}
                   >
                     Get Packing Tips
                   </Button>
@@ -294,7 +225,7 @@ export default function WeatherForecast() {
                 <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="text-slate-600 font-medium">Fetching real-time weather forecasts...</p>
               </Card>
-            ) : (
+            ) : currentWeather ? (
               <div className="space-y-8 animate-fadeIn">
                 {/* Current Weather */}
                 <Card className="border-0 shadow-lg p-8 bg-gradient-to-br from-cyan-50 to-blue-50">
@@ -415,6 +346,10 @@ export default function WeatherForecast() {
                   </div>
                 </Card>
               </div>
+            ) : (
+              <Card className="border-0 shadow-lg p-16 flex flex-col items-center justify-center bg-white text-slate-600">
+                No weather forecast data found. Try searching for a registered destination (e.g. Goa, Kashmir, Paris).
+              </Card>
             )}
           </div>
         </div>

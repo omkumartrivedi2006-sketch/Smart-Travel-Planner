@@ -6,6 +6,7 @@ import { DollarSign, Download, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { apiFetch } from "@/lib/api";
 
 interface BudgetItem {
   category: string;
@@ -17,76 +18,135 @@ export default function BudgetCalculator() {
   const [, navigate] = useLocation();
 
   // Input states
-  const [totalBudget, setTotalBudget] = useState(2500);
-  const [duration, setDuration] = useState(7);
-  const [travelers, setTravelers] = useState(1);
+  const [destinationsList, setDestinationsList] = useState<any[]>([]);
+  const [selectedDestId, setSelectedDestId] = useState("");
+  const [totalBudget, setTotalBudget] = useState(0);
+  const [duration, setDuration] = useState(5);
+  const [travelers, setTravelers] = useState(2);
   const [accommodationType, setAccommodationType] = useState("Mid-range Hotel");
   const [foodPreference, setFoodPreference] = useState("Mid-range");
+  const [transportPreference, setTransportPreference] = useState("Driving");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Output budget state
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
 
-  // Parse URL search parameters on mount
+  // Fetch destinations and parse URL search parameters on mount
   useEffect(() => {
+    async function loadDestinations() {
+      try {
+        const res = await apiFetch("/api/destinations?limit=100");
+        if (res && res.data && res.data.destinations) {
+          setDestinationsList(res.data.destinations);
+          
+          // Pre-select destination from query param or default to first
+          const params = new URLSearchParams(window.location.search);
+          const destParam = params.get("destination");
+          
+          let defaultDest = res.data.destinations[0];
+          if (destParam) {
+            const matched = res.data.destinations.find(
+              (d: any) => d.name.toLowerCase() === destParam.toLowerCase()
+            );
+            if (matched) defaultDest = matched;
+          }
+          
+          if (defaultDest) {
+            setSelectedDestId(defaultDest._id);
+            // Run initial calculation
+            calculateBackendBudget(defaultDest._id, duration, travelers, accommodationType, foodPreference, transportPreference);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load destinations", e);
+      }
+    }
+    loadDestinations();
+
     const params = new URLSearchParams(window.location.search);
-    const totalParam = params.get("total");
     const durationParam = params.get("duration");
     const travelersParam = params.get("travelers");
 
-    if (totalParam) setTotalBudget(Number(totalParam));
     if (durationParam) setDuration(Number(durationParam));
     if (travelersParam) setTravelers(Number(travelersParam));
-
-    calculateBudget(
-      totalParam ? Number(totalParam) : 2500,
-      accommodationType,
-      foodPreference
-    );
   }, []);
 
-  const calculateBudget = (
-    budgetVal: number,
+  const calculateBackendBudget = async (
+    destId: string,
+    days: number,
+    people: number,
     accType: string,
-    foodPref: string
+    foodPref: string,
+    transPref: string
   ) => {
-    // Dynamic percentage allocations based on selections
-    let accPercent = 40;
-    if (accType === "Luxury Hotel") accPercent = 50;
-    else if (accType === "Hostel") accPercent = 20;
-    else if (accType === "Budget Hotel") accPercent = 30;
+    if (!destId) return;
+    setIsLoading(true);
+    try {
+      const today = new Date();
+      const end = new Date(today);
+      end.setDate(today.getDate() + days);
 
-    let foodPercent = 24;
-    if (foodPref === "Premium") foodPercent = 30;
-    else if (foodPref === "Budget") foodPercent = 15;
+      // Map accommodation type to backend hotelPreference ("budget" | "mid-range" | "luxury")
+      let hotelPref: "budget" | "mid-range" | "luxury" = "mid-range";
+      const accLower = accType.toLowerCase();
+      if (accLower.includes("luxury")) {
+        hotelPref = "luxury";
+      } else if (accLower.includes("budget") || accLower.includes("hostel")) {
+        hotelPref = "budget";
+      }
 
-    let transportPercent = 20;
-    let activitiesPercent = 12;
+      // Map transport type to backend transportPreference ("car" | "train" | "flight")
+      let transPrefMapped: "car" | "train" | "flight" = "car";
+      const transLower = transPref.toLowerCase();
+      if (transLower.includes("flight")) {
+        transPrefMapped = "flight";
+      } else if (transLower.includes("train") || transLower.includes("transit")) {
+        transPrefMapped = "train";
+      }
 
-    // Adjust for total summing to 100
-    let miscPercent = 100 - (accPercent + foodPercent + transportPercent + activitiesPercent);
-    if (miscPercent < 4) {
-      miscPercent = 4;
-      activitiesPercent = 100 - (accPercent + foodPercent + transportPercent + miscPercent);
+      const res = await apiFetch("/api/budget/calculate", {
+        method: "POST",
+        body: JSON.stringify({
+          destinationId: destId,
+          startDate: today.toISOString().split("T")[0],
+          endDate: end.toISOString().split("T")[0],
+          travelers: people,
+          hotelPreference: hotelPref,
+          transportPreference: transPrefMapped,
+          travelType: people === 1 ? "solo" : people === 2 ? "couple" : "friends",
+        }),
+      });
+
+      if (res && res.data && res.data.budget) {
+        const b = res.data.budget;
+        setTotalBudget(Math.round(b.totalEstimate));
+
+        const items: BudgetItem[] = [
+          { category: "Accommodation", amount: Math.round(b.hotelCost), percentage: Math.round((b.hotelCost / b.totalEstimate) * 100) },
+          { category: "Food & Dining", amount: Math.round(b.foodCost), percentage: Math.round((b.foodCost / b.totalEstimate) * 100) },
+          { category: "Transportation", amount: Math.round(b.transportCost), percentage: Math.round((b.transportCost / b.totalEstimate) * 100) },
+          { category: "Activities", amount: Math.round(b.activitiesCost), percentage: Math.round((b.activitiesCost / b.totalEstimate) * 100) },
+          { category: "Miscellaneous", amount: Math.round(b.miscellaneousCost), percentage: Math.round((b.miscellaneousCost / b.totalEstimate) * 100) },
+        ];
+        
+        // Ensure percentages sum to 100
+        const totalPct = items.reduce((sum, item) => sum + item.percentage, 0);
+        if (totalPct !== 100 && items.length > 0) {
+          items[0].percentage += (100 - totalPct);
+        }
+
+        setBudgetItems(items);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to calculate budget.");
+    } finally {
+      setIsLoading(false);
     }
-
-    const items = [
-      { category: "Accommodation", percentage: accPercent },
-      { category: "Food & Dining", percentage: foodPercent },
-      { category: "Transportation", percentage: transportPercent },
-      { category: "Activities", percentage: activitiesPercent },
-      { category: "Miscellaneous", percentage: miscPercent },
-    ].map((item) => ({
-      category: item.category,
-      amount: Math.round((budgetVal * item.percentage) / 100),
-      percentage: item.percentage,
-    }));
-
-    setBudgetItems(items);
   };
 
   const handleCalculate = () => {
-    if (totalBudget <= 0) {
-      toast.error("Please enter a valid total budget");
+    if (!selectedDestId) {
+      toast.error("Please select a destination");
       return;
     }
     if (duration <= 0) {
@@ -98,12 +158,12 @@ export default function BudgetCalculator() {
       return;
     }
 
-    calculateBudget(totalBudget, accommodationType, foodPreference);
-    toast.success("Budget recalculated!");
+    calculateBackendBudget(selectedDestId, duration, travelers, accommodationType, foodPreference, transportPreference);
+    toast.success("Budget calculated from database records!");
   };
 
   const handleSaveToTrip = () => {
-    navigate(`/planner?budget=${totalBudget}&travelers=${travelers}`);
+    navigate(`/planner?budget=${totalBudget}&travelers=${travelers}&destinationId=${selectedDestId}`);
     toast.success("Budget values copied to Trip Planner");
   };
 
@@ -137,13 +197,18 @@ export default function BudgetCalculator() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Total Budget (₹)</label>
-                  <Input
-                    type="number"
-                    value={totalBudget}
-                    onChange={(e) => setTotalBudget(Number(e.target.value))}
-                    placeholder="Enter amount"
-                  />
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Destination</label>
+                  <select
+                    value={selectedDestId}
+                    onChange={(e) => setSelectedDestId(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
+                  >
+                    {destinationsList.map((d) => (
+                      <option key={d._id} value={d._id}>
+                        {d.name}, {d.country}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -194,8 +259,21 @@ export default function BudgetCalculator() {
                   </select>
                 </div>
 
-                <Button onClick={handleCalculate} className="w-full bg-teal-600 hover:bg-teal-700 text-white mt-4 py-2">
-                  Calculate Budget
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Transport Mode</label>
+                  <select
+                    value={transportPreference}
+                    onChange={(e) => setTransportPreference(e.target.value)}
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
+                  >
+                    <option>Driving</option>
+                    <option>Public Transit / Train</option>
+                    <option>Flight</option>
+                  </select>
+                </div>
+
+                <Button onClick={handleCalculate} className="w-full bg-teal-600 hover:bg-teal-700 text-white mt-4 py-2" disabled={isLoading}>
+                  {isLoading ? "Calculating..." : "Calculate Budget"}
                 </Button>
               </div>
             </Card>

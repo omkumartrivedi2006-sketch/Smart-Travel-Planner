@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { User, Heart, Settings, LogOut, Edit2, Check, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch, clearSession } from "@/lib/api";
 
 export default function UserProfile() {
   const [, navigate] = useLocation();
@@ -90,8 +91,19 @@ export default function UserProfile() {
     setIsEditing(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("session_user");
+  const handleLogout = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    try {
+      if (refreshToken) {
+        await apiFetch("/api/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch (e) {
+      console.error("Logout request failed:", e);
+    }
+    clearSession();
     toast.success("Logged out successfully");
     setTimeout(() => {
       navigate("/login");

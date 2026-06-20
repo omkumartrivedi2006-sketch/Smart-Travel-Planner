@@ -18,13 +18,15 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch, clearSession } from "@/lib/api";
 
 export default function Home() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [sessionUser, setSessionUser] = useState<any>(null);
+  const [popularDestinations, setPopularDestinations] = useState<any[]>([]);
 
-  // Load session status
+  // Load session status and popular destinations
   useEffect(() => {
     const session = localStorage.getItem("session_user");
     if (session) {
@@ -34,6 +36,25 @@ export default function Home() {
         console.error(e);
       }
     }
+
+    async function loadPopular() {
+      try {
+        const res = await apiFetch("/api/destinations?limit=3&sort=-rating");
+        if (res && res.data && res.data.destinations) {
+          const mapped = res.data.destinations.map((d: any) => ({
+            id: d._id,
+            name: `${d.name}, ${d.country}`,
+            image: d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+            category: d.category,
+            budget: d.averageCost < 50 ? "Budget" : d.averageCost <= 150 ? "Mid-range" : "Premium",
+          }));
+          setPopularDestinations(mapped);
+        }
+      } catch (e) {
+        console.error("Failed to fetch popular destinations", e);
+      }
+    }
+    loadPopular();
   }, []);
 
   const handleSearch = () => {
@@ -44,8 +65,19 @@ export default function Home() {
     navigate(`/destinations?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("session_user");
+  const handleLogout = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    try {
+      if (refreshToken) {
+        await apiFetch("/api/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch (e) {
+      console.error("Logout request failed:", e);
+    }
+    clearSession();
     setSessionUser(null);
     toast.success("Logged out successfully");
   };
@@ -102,29 +134,7 @@ export default function Home() {
     },
   ];
 
-  const popularDestinations = [
-    {
-      id: 1,
-      name: "Bali, Indonesia",
-      image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/hero-destination-VZ2wPExvNymjQuKmtGaKGR.webp",
-      category: "Beach",
-      budget: "Budget",
-    },
-    {
-      id: 2,
-      name: "Swiss Alps",
-      image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/mountain-adventure-Q6V2CVvpTrLANZMyFudGT9.webp",
-      category: "Adventure",
-      budget: "Premium",
-    },
-    {
-      id: 3,
-      name: "Madrid, Spain",
-      image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/city-exploration-S649PLnYoeWqXTwbRXN4hY.webp",
-      category: "Cultural",
-      budget: "Mid-range",
-    },
-  ];
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100">

@@ -13,7 +13,10 @@ import weatherRoutes from "./routes/weatherRoutes";
 import routeRoutes from "./routes/routeRoutes";
 import tripRoutes from "./routes/tripRoutes";
 import budgetRoutes from "./routes/budgetRoutes";
+import chatRoutes from "./routes/chatRoutes";
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware";
+import fs from "fs";
+import swaggerUi from "swagger-ui-express";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +54,17 @@ async function startServer() {
   app.use("/api/routes", routeRoutes);
   app.use("/api/trips", tripRoutes);
   app.use("/api/budget", budgetRoutes);
+  app.use("/api/chat", chatRoutes);
+
+  // Swagger Documentation Route
+  try {
+    const swaggerDocument = JSON.parse(
+      fs.readFileSync(new URL("./swagger.json", import.meta.url), "utf8")
+    );
+    app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  } catch (err) {
+    logger.error("Failed to load swagger.json:", err);
+  }
 
   // 5. API 404 Handler (ensures unknown /api requests don't fall back to client HTML)
   app.all("/api/*", notFoundHandler);

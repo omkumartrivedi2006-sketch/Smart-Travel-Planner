@@ -5,12 +5,14 @@ import { useLocation } from "wouter";
 import { Compass } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 export default function ForgotPassword() {
   const [, navigate] = useLocation();
   const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       toast.error("Please enter your email address");
@@ -21,10 +23,21 @@ export default function ForgotPassword() {
       return;
     }
     
-    toast.success("Password reset link sent to " + email);
-    setTimeout(() => {
-      navigate("/login");
-    }, 1500);
+    setIsLoading(true);
+    try {
+      await apiFetch("/api/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      toast.success("Password reset link sent to " + email);
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reset link. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -54,8 +67,8 @@ export default function ForgotPassword() {
               />
             </div>
 
-            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2">
-              Send Reset Link
+            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2" disabled={isLoading}>
+              {isLoading ? "Sending Link..." : "Send Reset Link"}
             </Button>
           </form>
 

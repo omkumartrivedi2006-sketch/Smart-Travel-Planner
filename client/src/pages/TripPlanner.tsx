@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { ChevronRight, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 export default function TripPlanner() {
   const [, navigate] = useLocation();
@@ -12,27 +13,42 @@ export default function TripPlanner() {
 
   // Form states
   const [destination, setDestination] = useState("");
+  const [destinationId, setDestinationId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [budget, setBudget] = useState("2500");
   const [budgetLevel, setBudgetLevel] = useState("Mid-range");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [travelers, setTravelers] = useState("1");
-  const [travelerType, setTravelerType] = useState("Solo");
+  const [travelers, setTravelers] = useState("2");
+  const [travelerType, setTravelerType] = useState("Couple");
   const [accommodation, setAccommodation] = useState("Hotel");
+  const [destinationsList, setDestinationsList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Read query parameters on mount to prefill destination
+  // Fetch destinations and parse URL search parameters on mount
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const destParam = params.get("destination");
-    const budgetParam = params.get("budget");
-    
-    if (destParam) {
-      setDestination(destParam);
+    async function loadDestinations() {
+      try {
+        const res = await apiFetch("/api/destinations?limit=100");
+        if (res && res.data && res.data.destinations) {
+          setDestinationsList(res.data.destinations);
+          
+          const params = new URLSearchParams(window.location.search);
+          const destParam = params.get("destination");
+          const budgetParam = params.get("budget");
+          const travelersParam = params.get("travelers");
+          const destIdParam = params.get("destinationId");
+
+          if (destParam) setDestination(destParam);
+          if (destIdParam) setDestinationId(destIdParam);
+          if (budgetParam) setBudget(budgetParam);
+          if (travelersParam) setTravelers(travelersParam);
+        }
+      } catch (e) {
+        console.error("Failed to load destinations list", e);
+      }
     }
-    if (budgetParam) {
-      setBudget(budgetParam);
-    }
+    loadDestinations();
   }, []);
 
   const toggleInterest = (interest: string) => {
@@ -44,10 +60,25 @@ export default function TripPlanner() {
   };
 
   const handleNext = () => {
-    // Step validation checks
     if (step === 1) {
       if (!destination.trim()) {
         toast.error("Please enter or select a destination");
+        return;
+      }
+      
+      // Try to find matching destination record
+      const endClean = destination.trim().toLowerCase();
+      const matched = destinationsList.find(
+        (d) => d.name.toLowerCase() === endClean || d.country.toLowerCase() === endClean
+      ) || destinationsList.find(
+        (d) => d.name.toLowerCase().includes(endClean) || d.country.toLowerCase().includes(endClean)
+      );
+
+      if (matched) {
+        setDestinationId(matched._id);
+        setDestination(matched.name);
+      } else {
+        toast.error("Please select a registered destination from our records (e.g. Goa, Bali, Madrid, etc.)");
         return;
       }
     } else if (step === 2) {
@@ -78,35 +109,53 @@ export default function TripPlanner() {
     setStep(step + 1);
   };
 
-  const handleSaveTrip = () => {
+  const handleSaveTrip = async () => {
     if (!accommodation) {
       toast.error("Please select accommodation type");
       return;
     }
+    if (!destinationId) {
+      toast.error("Please select a valid destination");
+      return;
+    }
 
-    // Build the new trip object
-    const newTrip = {
-      id: Date.now(), // Unique ID using timestamp
-      name: `${destination} ${selectedInterests.includes("Beach") ? "Getaway" : "Adventure"}`,
-      destination: destination.includes(",") ? destination : `${destination}, Travel`,
-      startDate,
-      endDate,
-      budget: `₹${Number(budget).toLocaleString()}`,
-      status: "Upcoming",
-      travelers: Number(travelers),
-      travelerType,
-      accommodation,
-      interests: selectedInterests,
-    };
+    setIsLoading(true);
+    try {
+      // Map preferences to backend enums
+      let hotelPref: "budget" | "mid-range" | "luxury" = "mid-range";
+      const bLvl = budgetLevel.toLowerCase();
+      if (bLvl === "budget") {
+        hotelPref = "budget";
+      } else if (bLvl === "premium" || bLvl === "luxury") {
+        hotelPref = "luxury";
+      }
 
-    // Save to localStorage
-    const savedTrips = JSON.parse(localStorage.getItem("saved_trips") || "[]");
-    localStorage.setItem("saved_trips", JSON.stringify([...savedTrips, newTrip]));
+      const matchedDest = destinationsList.find((d) => d._id === destinationId);
+      const isInternational = matchedDest ? matchedDest.country.toLowerCase() !== "india" : false;
+      const transPref: "car" | "train" | "flight" = isInternational ? "flight" : "car";
 
-    toast.success("Trip planned and saved successfully!");
-    setTimeout(() => {
-      navigate("/saved-trips");
-    }, 1000);
+      await apiFetch("/api/trips", {
+        method: "POST",
+        body: JSON.stringify({
+          destinationId,
+          startDate,
+          endDate,
+          travelers: Number(travelers),
+          hotelPreference: hotelPref,
+          transportPreference: transPref,
+          travelType: travelerType.toLowerCase(),
+        }),
+      });
+
+      toast.success("Trip planned and saved successfully!");
+      setTimeout(() => {
+        navigate("/saved-trips");
+      }, 1000);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save trip. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -164,19 +213,22 @@ export default function TripPlanner() {
                   className="w-full"
                 />
                 <div className="grid grid-cols-2 gap-4">
-                  {["Bali, Indonesia", "Swiss Alps", "Madrid, Spain", "Tokyo, Japan"].map((dest) => {
-                    const isSelected = destination === dest;
+                  {destinationsList.slice(0, 4).map((dest) => {
+                    const isSelected = destinationId === dest._id;
                     return (
                       <Card
-                        key={dest}
+                        key={dest._id}
                         className={`border shadow-md p-4 cursor-pointer transition-all flex items-center justify-between ${
                           isSelected
                             ? "border-teal-500 bg-teal-50/50"
                             : "border-slate-100 hover:border-slate-300 hover:shadow-lg"
                         }`}
-                        onClick={() => setDestination(dest)}
+                        onClick={() => {
+                          setDestination(dest.name);
+                          setDestinationId(dest._id);
+                        }}
                       >
-                        <p className="font-semibold text-slate-900">{dest.split(",")[0]}</p>
+                        <p className="font-semibold text-slate-900">{dest.name}</p>
                         {isSelected && <Check className="w-5 h-5 text-teal-600" />}
                       </Card>
                     );

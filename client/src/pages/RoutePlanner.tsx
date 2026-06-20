@@ -6,6 +6,7 @@ import { Map, Navigation, Clock, Zap, MapPin } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { MapView } from "@/components/Map";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 interface RouteInfo {
   name: string;
@@ -15,131 +16,49 @@ interface RouteInfo {
   directions: { step: number; direction: string; distance: string }[];
 }
 
-const ROUTE_DATA: Record<string, Record<string, RouteInfo>> = {
-  driving: {
-    "Fastest Route": {
-      name: "Fastest Route (via Highway 1)",
-      time: "1h 30m",
-      distance: "45 km",
-      toll: "₹450",
-      directions: [
-        { step: 1, direction: "Head north on Airport Exit Rd", distance: "0.5 km" },
-        { step: 2, direction: "Turn right onto Bypass Highway 1", distance: "2.3 km" },
-        { step: 3, direction: "Continue straight on Highway 1", distance: "15 km" },
-        { step: 4, direction: "Take exit 45 towards Ubud Scenic route", distance: "8 km" },
-        { step: 5, direction: "Turn left onto Ubud Main Road", distance: "19.2 km" },
-        { step: 6, direction: "Arrive at destination on the right", distance: "0 km" },
-      ],
-    },
-    "Scenic Route": {
-      name: "Scenic Route (via Coast Road)",
-      time: "2h 15m",
-      distance: "52 km",
-      toll: "₹0",
-      directions: [
-        { step: 1, direction: "Head south along beach coastal lane", distance: "1.2 km" },
-        { step: 2, direction: "Turn left onto Coastal Bypass Rd", distance: "8.5 km" },
-        { step: 3, direction: "Follow signage towards rice field valleys", distance: "25 km" },
-        { step: 4, direction: "Continue past temples and craft villages", distance: "17.3 km" },
-        { step: 5, direction: "Arrive at destination on the right", distance: "0 km" },
-      ],
-    },
-    "Cheapest Route": {
-      name: "Cheapest Route (avoiding tolls)",
-      time: "1h 45m",
-      distance: "48 km",
-      toll: "₹0",
-      directions: [
-        { step: 1, direction: "Head north on Airport Exit Rd", distance: "0.5 km" },
-        { step: 2, direction: "Take the local bypass lanes to avoid toll booth", distance: "42.5 km" },
-        { step: 3, direction: "Turn right at the valley junction", distance: "5 km" },
-        { step: 4, direction: "Arrive at destination on the left", distance: "0 km" },
-      ],
-    },
-  },
-  walking: {
-    "Fastest Route": {
-      name: "Walking Route (Direct paths)",
-      time: "9h 15m",
-      distance: "42 km",
-      toll: "₹0",
-      directions: [
-        { step: 1, direction: "Head north on pedestrian sidewalk", distance: "1 km" },
-        { step: 2, direction: "Continue along local walking trail", distance: "39 km" },
-        { step: 3, direction: "Walk through town central path", distance: "2 km" },
-        { step: 4, direction: "Arrive at destination", distance: "0 km" },
-      ],
-    },
-    "Scenic Route": {
-      name: "Scenic Walking Trail",
-      time: "11h 30m",
-      distance: "49 km",
-      toll: "₹0",
-      directions: [
-        { step: 1, direction: "Take coastal walk path north", distance: "10 km" },
-        { step: 2, direction: "Follow forest trail pathway", distance: "32 km" },
-        { step: 3, direction: "Turn left onto village lanes", distance: "7 km" },
-        { step: 4, direction: "Arrive at destination", distance: "0 km" },
-      ],
-    },
-    "Cheapest Route": {
-      name: "Cheapest Walking Route",
-      time: "9h 15m",
-      distance: "42 km",
-      toll: "₹0",
-      directions: [
-        { step: 1, direction: "Walk along highway pedestrian corridors", distance: "42 km" },
-      ],
-    },
-  },
-};
-
 export default function RoutePlanner() {
   const [, navigate] = useLocation();
   const mapRef = useRef<google.maps.Map | null>(null);
 
   // Input states
-  const [startLocation, setStartLocation] = useState("Airport");
-  const [endLocation, setEndLocation] = useState("Ubud");
+  const [startLocation, setStartLocation] = useState("Jaipur");
+  const [endLocation, setEndLocation] = useState("Goa");
   const [transitMode, setTransitMode] = useState("Driving");
-  const [activeRouteName, setActiveRouteName] = useState("Fastest Route");
-  const [center, setCenter] = useState<google.maps.LatLngLiteral>({ lat: -8.4095, lng: 115.1889 }); // Default Bali
+  const [activeRoute, setActiveRoute] = useState<RouteInfo>({
+    name: "Fastest Route",
+    time: "Calculating...",
+    distance: "Calculating...",
+    toll: "Calculating...",
+    directions: [
+      { step: 1, direction: "Enter locations and click Get Directions to begin.", distance: "0 km" }
+    ]
+  });
+  const [center, setCenter] = useState<google.maps.LatLngLiteral>({ lat: 15.2993, lng: 74.1240 }); // Default Goa
+  const [destinationsList, setDestinationsList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Parse query parameters
+  // Fetch active database destinations on mount to resolve coordinates
   useEffect(() => {
+    async function loadDestinations() {
+      try {
+        const res = await apiFetch("/api/destinations?limit=100");
+        if (res && res.data && res.data.destinations) {
+          setDestinationsList(res.data.destinations);
+        }
+      } catch (e) {
+        console.error("Failed to load destinations", e);
+      }
+    }
+    loadDestinations();
+
     const params = new URLSearchParams(window.location.search);
     const startParam = params.get("start");
     const endParam = params.get("end");
-    
     if (startParam) setStartLocation(startParam);
-    if (endParam) {
-      setEndLocation(endParam);
-      handleUpdateCoordinates(endParam);
-    }
+    if (endParam) setEndLocation(endParam);
   }, []);
 
-  const handleUpdateCoordinates = (destinationName: string) => {
-    const nameLower = destinationName.toLowerCase();
-    let newCenter = { lat: -8.4095, lng: 115.1889 }; // Default Bali
-    
-    if (nameLower.includes("alps") || nameLower.includes("swiss") || nameLower.includes("switzerland")) {
-      newCenter = { lat: 46.8182, lng: 8.2275 }; // Swiss Alps
-    } else if (nameLower.includes("madrid") || nameLower.includes("spain") || nameLower.includes("madrid, spain")) {
-      newCenter = { lat: 40.4168, lng: -3.7038 }; // Madrid
-    } else if (nameLower.includes("tokyo") || nameLower.includes("japan")) {
-      newCenter = { lat: 35.6762, lng: 139.6503 }; // Tokyo
-    } else if (nameLower.includes("paris")) {
-      newCenter = { lat: 48.8566, lng: 2.3522 }; // Paris
-    }
-
-    setCenter(newCenter);
-    if (mapRef.current) {
-      mapRef.current.setCenter(newCenter);
-      mapRef.current.setZoom(13);
-    }
-  };
-
-  const handleGetDirections = () => {
+  const handleGetDirections = async () => {
     if (!startLocation.trim()) {
       toast.error("Please enter a start location");
       return;
@@ -149,14 +68,94 @@ export default function RoutePlanner() {
       return;
     }
 
-    handleUpdateCoordinates(endLocation);
-    toast.success(`Directions calculated from ${startLocation} to ${endLocation}!`);
-  };
+    setIsLoading(true);
+    try {
+      // 1. Resolve start location coordinates (origin)
+      const startClean = startLocation.trim().toLowerCase();
+      const matchedStart = destinationsList.find(
+        (d) => d.name.toLowerCase().includes(startClean) || d.country.toLowerCase().includes(startClean)
+      );
+      
+      const originLat = matchedStart ? matchedStart.latitude : 26.9124; // Default Jaipur Lat if not matched
+      const originLng = matchedStart ? matchedStart.longitude : 75.7873; // Default Jaipur Lng if not matched
 
-  // Get active route data
-  const modeKey = transitMode.toLowerCase() === "walking" ? "walking" : "driving";
-  const activeRoutes = ROUTE_DATA[modeKey] || ROUTE_DATA.driving;
-  const activeRoute = activeRoutes[activeRouteName] || activeRoutes["Fastest Route"];
+      // 2. Resolve destination ID
+      const endClean = endLocation.trim().toLowerCase();
+      const matchedEnd = destinationsList.find(
+        (d) => d.name.toLowerCase().includes(endClean) || d.country.toLowerCase().includes(endClean)
+      );
+
+      if (!matchedEnd) {
+        throw new Error(`Destination "${endLocation}" not found in our database records. Please try a registered destination like Goa, Kashmir, Jaipur, etc.`);
+      }
+
+      // Map UI transport selection to backend enums ("flight" | "train" | "car")
+      let modeStr = "car";
+      const transitLower = transitMode.toLowerCase();
+      if (transitLower.includes("flight")) {
+        modeStr = "flight";
+      } else if (transitLower.includes("train") || transitLower.includes("transit") || transitLower.includes("walk")) {
+        modeStr = "train";
+      }
+
+      // 3. Request calculation from route service
+      const routeRes = await apiFetch("/api/routes/calculate", {
+        method: "POST",
+        body: JSON.stringify({
+          originLatitude: originLat,
+          originLongitude: originLng,
+          destinationId: matchedEnd._id,
+          modeOfTransport: modeStr,
+        }),
+      });
+
+      if (routeRes && routeRes.data) {
+        const { distanceKm, durationHours, estimatedCost, suggestedItinerary, warning } = routeRes.data;
+
+        // Format duration
+        let durationText = "";
+        if (durationHours >= 1) {
+          const hours = Math.floor(durationHours);
+          const mins = Math.round((durationHours - hours) * 60);
+          durationText = `${hours}h ${mins}m`;
+        } else {
+          durationText = `${Math.round(durationHours * 60)}m`;
+        }
+
+        const calculatedRoute: RouteInfo = {
+          name: `${transitMode} Route (via database coordinates)`,
+          time: durationText,
+          distance: `${distanceKm.toFixed(1)} km`,
+          toll: `$${estimatedCost.toFixed(2)}`,
+          directions: suggestedItinerary.map((stepText: string, idx: number) => ({
+            step: idx + 1,
+            direction: stepText,
+            distance: idx === 0 ? "0 km" : `${(distanceKm / (suggestedItinerary.length - 1)).toFixed(1)} km`
+          }))
+        };
+
+        setActiveRoute(calculatedRoute);
+        
+        // Update map zoom and center on destination
+        const newCenter = { lat: matchedEnd.latitude, lng: matchedEnd.longitude };
+        setCenter(newCenter);
+        if (mapRef.current) {
+          mapRef.current.setCenter(newCenter);
+          mapRef.current.setZoom(11);
+        }
+
+        if (warning) {
+          toast.warning(warning);
+        } else {
+          toast.success(`Directions calculated successfully to ${matchedEnd.name}!`);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to calculate route.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSaveRoute = () => {
     toast.success("Route saved to your dashboard!");
@@ -218,7 +217,7 @@ export default function RoutePlanner() {
                     value={transitMode}
                     onChange={(e) => {
                       setTransitMode(e.target.value);
-                      setActiveRouteName("Fastest Route");
+                      setActiveRoute(prev => ({ ...prev, name: "Fastest Route" }));
                     }}
                     className="w-full border border-slate-300 rounded px-3 py-2 text-slate-800 focus:outline-teal-500 focus:ring-1 focus:ring-teal-500"
                   >
@@ -297,35 +296,23 @@ export default function RoutePlanner() {
             <div className="mb-8">
               <h3 className="text-2xl font-bold text-slate-900 mb-6">Route Options</h3>
               <div className="space-y-4">
-                {Object.keys(activeRoutes).map((name) => {
-                  const r = activeRoutes[name];
-                  const isSelected = activeRouteName === name;
-                  return (
-                    <Card
-                      key={name}
-                      onClick={() => setActiveRouteName(name)}
-                      className={`border shadow-md p-6 hover:shadow-lg transition-all cursor-pointer bg-white ${
-                        isSelected ? "border-teal-500 bg-teal-50/10" : "border-slate-100"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-bold text-slate-900 mb-2">{r.name}</h4>
-                          <div className="grid grid-cols-3 gap-4 text-sm text-slate-600">
-                            <p>⏱️ {r.time}</p>
-                            <p>📍 {r.distance}</p>
-                            <p>💰 {r.toll}</p>
-                          </div>
-                        </div>
-                        <Button className={`ml-4 ${
-                          isSelected ? "bg-teal-600 hover:bg-teal-700 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-800"
-                        }`}>
-                          {isSelected ? "Selected" : "Select"}
-                        </Button>
+                <Card
+                  className="border shadow-md p-6 bg-white border-teal-500 bg-teal-50/10"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-900 mb-2">{activeRoute.name}</h4>
+                      <div className="grid grid-cols-3 gap-4 text-sm text-slate-600">
+                        <p>⏱️ {activeRoute.time}</p>
+                        <p>📍 {activeRoute.distance}</p>
+                        <p>💰 {activeRoute.toll}</p>
                       </div>
-                    </Card>
-                  );
-                })}
+                    </div>
+                    <Button className="ml-4 bg-teal-600 hover:bg-teal-700 text-white">
+                      Selected
+                    </Button>
+                  </div>
+                </Card>
               </div>
             </div>
 

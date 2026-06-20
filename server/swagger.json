@@ -1,0 +1,442 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Smart Travel Planner API",
+    "version": "1.0.0",
+    "description": "Production-ready backend API documentation for the Smart Travel Planner, featuring Authentication, Destination explorer, Weather cache lookup, Route planning, Trip CRUD, Budgeting estimation, and AI chat assistant."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development Server"
+    }
+  ],
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": { "type": "string", "example": "John Doe" },
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" },
+                  "password": { "type": "string", "minLength": 6, "example": "password123" },
+                  "role": { "type": "string", "enum": ["user", "admin"], "default": "user" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "name": { "type": "string" },
+                            "email": { "type": "string" },
+                            "role": { "type": "string" }
+                          }
+                        },
+                        "accessToken": { "type": "string" },
+                        "refreshToken": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Authenticate user & sign in",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" },
+                  "password": { "type": "string", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sign in successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": { "type": "object" },
+                        "accessToken": { "type": "string" },
+                        "refreshToken": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "Rotate access token using refresh token",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refreshToken"],
+                "properties": {
+                  "refreshToken": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Token rotation successful" }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Logout user",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refreshToken"],
+                "properties": {
+                  "refreshToken": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Logout successful" }
+        }
+      }
+    },
+    "/api/destinations": {
+      "get": {
+        "summary": "Query destinations with search, sorting, and filters",
+        "tags": ["Destinations"],
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Matches name, country, or category" },
+          { "name": "country", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "maxCost", "in": "query", "schema": { "type": "number" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string" }, "description": "e.g., averageCost, -rating" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "List of destinations retrieved" }
+        }
+      },
+      "post": {
+        "summary": "Create a new destination (Admin only)",
+        "tags": ["Destinations"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "description", "country", "category", "latitude", "longitude", "averageCost", "activities", "bestTimeToVisit"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "country": { "type": "string" },
+                  "category": { "type": "string" },
+                  "latitude": { "type": "number" },
+                  "longitude": { "type": "number" },
+                  "averageCost": { "type": "number" },
+                  "activities": { "type": "array", "items": { "type": "string" } },
+                  "bestTimeToVisit": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created successfully" }
+        }
+      }
+    },
+    "/api/destinations/{id}": {
+      "get": {
+        "summary": "Get destination details",
+        "tags": ["Destinations"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Details retrieved" }
+        }
+      },
+      "put": {
+        "summary": "Modify destination (Admin only)",
+        "tags": ["Destinations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Updated successfully" }
+        }
+      },
+      "delete": {
+        "summary": "Delete destination (Admin only)",
+        "tags": ["Destinations"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted successfully" }
+        }
+      }
+    },
+    "/api/weather/{destination}": {
+      "get": {
+        "summary": "Get weather forecast for a destination",
+        "tags": ["Weather"],
+        "parameters": [
+          { "name": "destination", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Name or country" }
+        ],
+        "responses": {
+          "200": { "description": "Weather forecast data" }
+        }
+      }
+    },
+    "/api/routes/calculate": {
+      "post": {
+        "summary": "Estimate distance, duration, and pricing for a route",
+        "tags": ["Routes"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["originLatitude", "originLongitude", "destinationId", "modeOfTransport"],
+                "properties": {
+                  "originLatitude": { "type": "number", "example": 28.6139 },
+                  "originLongitude": { "type": "number", "example": 77.2090 },
+                  "destinationId": { "type": "string", "example": "603e2329..." },
+                  "modeOfTransport": { "type": "string", "enum": ["car", "train", "flight"], "example": "flight" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Calculations calculated" }
+        }
+      }
+    },
+    "/api/trips": {
+      "get": {
+        "summary": "List all saved trips for the authenticated user",
+        "tags": ["Trips"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Saved trips list" }
+        }
+      },
+      "post": {
+        "summary": "Save a planned trip (auto-generates itinerary and linked budget)",
+        "tags": ["Trips"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["destinationId", "startDate", "endDate", "travelers"],
+                "properties": {
+                  "destinationId": { "type": "string" },
+                  "startDate": { "type": "string", "format": "date", "example": "2026-07-01" },
+                  "endDate": { "type": "string", "format": "date", "example": "2026-07-05" },
+                  "travelers": { "type": "integer", "minimum": 1, "example": 2 },
+                  "hotelPreference": { "type": "string", "enum": ["budget", "mid-range", "luxury"], "default": "mid-range" },
+                  "transportPreference": { "type": "string", "enum": ["car", "train", "flight"], "default": "car" },
+                  "travelType": { "type": "string", "enum": ["solo", "couple", "family", "friends"], "default": "solo" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Trip planned & saved successfully" }
+        }
+      }
+    },
+    "/api/trips/{id}": {
+      "get": {
+        "summary": "Get specific trip details",
+        "tags": ["Trips"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Details retrieved" }
+        }
+      },
+      "put": {
+        "summary": "Modify planned trip (auto-recalculates budget & itinerary)",
+        "tags": ["Trips"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Updated successfully" }
+        }
+      },
+      "delete": {
+        "summary": "Delete saved trip & its linked budget",
+        "tags": ["Trips"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted successfully" }
+        }
+      }
+    },
+    "/api/budget/calculate": {
+      "post": {
+        "summary": "Calculate itemized trip budget simulation",
+        "tags": ["Budget"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["destinationId", "startDate", "endDate", "travelers"],
+                "properties": {
+                  "destinationId": { "type": "string" },
+                  "startDate": { "type": "string", "format": "date", "example": "2026-07-01" },
+                  "endDate": { "type": "string", "format": "date", "example": "2026-07-05" },
+                  "travelers": { "type": "integer", "minimum": 1 },
+                  "hotelPreference": { "type": "string", "enum": ["budget", "mid-range", "luxury"], "default": "mid-range" },
+                  "transportPreference": { "type": "string", "enum": ["car", "train", "flight"], "default": "car" },
+                  "travelType": { "type": "string", "enum": ["solo", "couple", "family", "friends"], "default": "solo" },
+                  "originLatitude": { "type": "number" },
+                  "originLongitude": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Calculations returned successfully" }
+        }
+      }
+    },
+    "/api/chat/message": {
+      "post": {
+        "summary": "Send a message to the AI Assistant",
+        "tags": ["AI Chat"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": { "type": "string", "example": "What is the weather like in Goa?" },
+                  "session": { "type": "string", "description": "Session ID to preserve context history" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Reply returned" }
+        }
+      }
+    },
+    "/api/chat/history": {
+      "get": {
+        "summary": "Retrieve chat history",
+        "tags": ["AI Chat"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "session", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Message logs returned" }
+        }
+      },
+      "delete": {
+        "summary": "Clear chat logs",
+        "tags": ["AI Chat"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "session", "in": "query", "schema": { "type": "string" }, "description": "Clears specific session if provided, otherwise clears all user history" }
+        ],
+        "responses": {
+          "200": { "description": "Cleared successfully" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

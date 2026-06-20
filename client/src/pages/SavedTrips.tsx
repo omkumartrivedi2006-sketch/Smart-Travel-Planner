@@ -1,86 +1,86 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Edit2, Trash2, Share2, Calendar, DollarSign, MapPin } from "lucide-react";
+import { Edit2, Trash2, Share2, Calendar, DollarSign, MapPin, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 interface Trip {
-  id: number;
-  name: string;
-  destination: string;
+  _id: string;
+  destination: {
+    _id: string;
+    name: string;
+    description?: string;
+    country?: string;
+  };
   startDate: string;
   endDate: string;
-  budget: string;
-  status: string;
   travelers?: number;
-  accommodation?: string;
-  interests?: string[];
+  hotelPreference?: string;
+  transportPreference?: string;
+  travelType?: string;
+  budget?: {
+    _id: string;
+    hotelCost: number;
+    foodCost: number;
+    transportCost: number;
+    activitiesCost: number;
+    miscellaneousCost: number;
+    totalEstimate: number;
+  };
+  status?: string;
 }
-
-const DEFAULT_TRIPS: Trip[] = [
-  {
-    id: 1,
-    name: "Bali Beach Getaway",
-    destination: "Bali, Indonesia",
-    startDate: "2026-07-15",
-    endDate: "2026-07-22",
-    budget: "₹2,500",
-    status: "Upcoming",
-    travelers: 2,
-    accommodation: "Resort",
-  },
-  {
-    id: 2,
-    name: "Swiss Alps Adventure",
-    destination: "Swiss Alps",
-    startDate: "2026-08-01",
-    endDate: "2026-08-10",
-    budget: "₹5,000",
-    status: "Upcoming",
-    travelers: 2,
-    accommodation: "Hotel",
-  },
-  {
-    id: 3,
-    name: "Madrid City Break",
-    destination: "Madrid, Spain",
-    startDate: "2026-06-20",
-    endDate: "2026-06-25",
-    budget: "₹1,800",
-    status: "Completed",
-    travelers: 1,
-    accommodation: "Airbnb",
-  },
-];
 
 export default function SavedTrips() {
   const [, navigate] = useLocation();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("All");
 
-  // Load trips from localStorage on mount, fall back to default trips
+  // Load trips from API
   useEffect(() => {
-    const saved = localStorage.getItem("saved_trips");
-    if (saved) {
+    async function fetchTrips() {
       try {
-        const parsed = JSON.parse(saved);
-        setTrips(parsed);
-      } catch (e) {
-        console.error("Failed to parse saved trips", e);
-        setTrips(DEFAULT_TRIPS);
+        setIsLoading(true);
+        const res = await apiFetch("/api/trips");
+        if (res && res.data && res.data.trips) {
+          // Process status for each trip dynamically
+          const processed = res.data.trips.map((t: any) => {
+            const now = new Date();
+            const start = new Date(t.startDate);
+            const end = new Date(t.endDate);
+            let computedStatus = "Upcoming";
+            if (end < now) {
+              computedStatus = "Completed";
+            }
+            return {
+              ...t,
+              status: computedStatus,
+            };
+          });
+          setTrips(processed);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch trips", err);
+        toast.error("Failed to load your trips. Make sure you are logged in.");
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      setTrips(DEFAULT_TRIPS);
-      localStorage.setItem("saved_trips", JSON.stringify(DEFAULT_TRIPS));
     }
+    fetchTrips();
   }, []);
 
-  const handleDeleteTrip = (id: number, name: string) => {
-    const updated = trips.filter(t => t.id !== id);
-    setTrips(updated);
-    localStorage.setItem("saved_trips", JSON.stringify(updated));
-    toast.success(`Deleted trip "${name}" successfully`);
+  const handleDeleteTrip = async (id: string, name: string) => {
+    try {
+      await apiFetch(`/api/trips/${id}`, {
+        method: "DELETE",
+      });
+      setTrips(prev => prev.filter(t => t._id !== id));
+      toast.success(`Deleted trip "${name}" successfully`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete trip. Please try again.");
+    }
   };
 
   const handleShareTrip = (name: string) => {
@@ -89,14 +89,14 @@ export default function SavedTrips() {
   };
 
   const handleEditTrip = (trip: Trip) => {
-    const cleanBudget = trip.budget.replace(/[^0-9]/g, "");
-    navigate(`/planner?destination=${encodeURIComponent(trip.destination)}&budget=${cleanBudget}`);
+    const totalEstimate = trip.budget?.totalEstimate || 0;
+    navigate(`/planner?destination=${encodeURIComponent(trip.destination.name)}&budget=${totalEstimate}&travelers=${trip.travelers || 2}`);
   };
 
   // Filter trips based on state tab selection
   const filteredTrips = trips.filter((trip) => {
     if (filter === "All") return true;
-    return trip.status.toLowerCase() === filter.toLowerCase();
+    return trip.status?.toLowerCase() === filter.toLowerCase();
   });
 
   return (
@@ -120,7 +120,12 @@ export default function SavedTrips() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        {trips.length === 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-12 h-12 text-teal-600 animate-spin mb-4" />
+            <p className="text-slate-600 font-medium animate-pulse">Loading your saved journeys...</p>
+          </div>
+        ) : trips.length === 0 ? (
           <Card className="border-0 shadow-lg p-12 text-center bg-white">
             <h2 className="text-2xl font-bold text-slate-900 mb-2">No trips yet</h2>
             <p className="text-slate-600 mb-6">Start planning your first adventure!</p>
@@ -135,7 +140,7 @@ export default function SavedTrips() {
           <div className="space-y-6">
             {/* Filter Tabs */}
             <div className="flex flex-wrap gap-2 mb-8">
-              {["All", "Upcoming", "Completed", "Archived"].map((f) => {
+              {["All", "Upcoming", "Completed"].map((f) => {
                 const isActive = filter === f;
                 return (
                   <Button
@@ -156,79 +161,80 @@ export default function SavedTrips() {
                 <p className="text-slate-600">No {filter.toLowerCase()} trips found.</p>
               </Card>
             ) : (
-              filteredTrips.map((trip) => (
-                <Card
-                  key={trip.id}
-                  className="border-0 shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer bg-white"
-                  onClick={() => navigate(`/trips/${trip.id}`)}
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
-                    {/* Trip Info */}
-                    <div className="md:col-span-2">
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{trip.name}</h3>
-                      <p className="text-slate-600 flex items-center gap-2 mb-2">
-                        <MapPin className="w-4 h-4 text-teal-600" />
-                        {trip.destination}
-                      </p>
-                      <p className="text-slate-600 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-teal-600" />
-                        {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
-                      </p>
-                    </div>
+              filteredTrips.map((trip) => {
+                const tripName = `Trip to ${trip.destination.name}`;
+                return (
+                  <Card
+                    key={trip._id}
+                    className="border-0 shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer bg-white"
+                    onClick={() => navigate(`/trips/${trip._id}`)}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+                      {/* Trip Info */}
+                      <div className="md:col-span-2">
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">{tripName}</h3>
+                        <p className="text-slate-600 flex items-center gap-2 mb-2">
+                          <MapPin className="w-4 h-4 text-teal-600" />
+                          {trip.destination.name}
+                        </p>
+                        <p className="text-slate-600 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-teal-600" />
+                          {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
 
-                    {/* Budget & Status */}
-                    <div>
-                      <p className="text-sm text-slate-600 mb-1">Budget</p>
-                      <p className="text-xl font-bold text-teal-600 flex items-center gap-1">
-                        <DollarSign className="w-5 h-5" />
-                        {trip.budget}
-                      </p>
-                      <div className="mt-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          trip.status === "Upcoming"
-                            ? "bg-blue-100 text-blue-700"
-                            : trip.status === "Completed"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}>
-                          {trip.status}
-                        </span>
+                      {/* Budget & Status */}
+                      <div>
+                        <p className="text-sm text-slate-600 mb-1">Budget</p>
+                        <p className="text-xl font-bold text-teal-600 flex items-center gap-1">
+                          <DollarSign className="w-5 h-5" />
+                          ₹{(trip.budget?.totalEstimate || 0).toLocaleString()}
+                        </p>
+                        <div className="mt-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            trip.status === "Upcoming"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-green-100 text-green-700"
+                          }`}>
+                            {trip.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 justify-end md:justify-start" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          title="Edit Trip"
+                          className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                          onClick={() => handleEditTrip(trip)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          title="Share Trip"
+                          className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                          onClick={() => handleShareTrip(tripName)}
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          title="Delete Trip"
+                          className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                          onClick={() => handleDeleteTrip(trip._id, tripName)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2 justify-end md:justify-start" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        title="Edit Trip"
-                        className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                        onClick={() => handleEditTrip(trip)}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        title="Share Trip"
-                        className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                        onClick={() => handleShareTrip(trip.name)}
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        title="Delete Trip"
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                        onClick={() => handleDeleteTrip(trip.id, trip.name)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
           </div>
         )}

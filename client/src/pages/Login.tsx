@@ -5,14 +5,16 @@ import { useLocation } from "wouter";
 import { Compass } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { apiFetch, setSession } from "@/lib/api";
 
 export default function Login() {
   const [, navigate] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email) {
@@ -32,26 +34,33 @@ export default function Login() {
       return;
     }
 
-    // Save session in localStorage for demo
-    const isMockAdmin = email.toLowerCase().includes("admin");
-    const sessionUser = {
-      email,
-      name: isMockAdmin ? "Admin User" : "John Doe",
-      role: isMockAdmin ? "admin" : "user",
-      rememberMe,
-    };
-    localStorage.setItem("session_user", JSON.stringify(sessionUser));
+    setIsLoading(true);
+    try {
+      const res = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
 
-    toast.success("Signed in successfully!");
-    
-    // Connect user flow - redirect admins to Admin Dashboard, regular users to Home/Profile
-    setTimeout(() => {
-      if (isMockAdmin) {
-        navigate("/admin");
+      if (res.status === "success" || res.data) {
+        const { user, accessToken, refreshToken } = res.data;
+        setSession(user, accessToken, refreshToken);
+        toast.success("Signed in successfully!");
+        
+        setTimeout(() => {
+          if (user.role === "admin") {
+            navigate("/admin");
+          } else {
+            navigate("/");
+          }
+        }, 1000);
       } else {
-        navigate("/");
+        toast.error("Invalid response from server");
       }
-    }, 1000);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sign in. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -105,8 +114,8 @@ export default function Login() {
               </a>
             </div>
 
-            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2">
-              Sign In
+            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2" disabled={isLoading}>
+              {isLoading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
 

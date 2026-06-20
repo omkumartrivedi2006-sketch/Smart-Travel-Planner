@@ -5,6 +5,11 @@ import { registerSchema } from "./validation/authValidation";
 import { createDestinationSchema, calculateRouteSchema } from "./validation/travelValidation";
 import { performBudgetCalculation } from "./controllers/budgetController";
 import { createTripSchema, calculateBudgetSchema } from "./validation/tripValidation";
+import { getAIChatResponse } from "./services/aiService";
+import { Chat } from "./models/Chat";
+import { Destination } from "./models/Destination";
+import { Weather } from "./models/Weather";
+import mongoose from "mongoose";
 
 // Helper from routeController
 function calculateHaversineDistance(
@@ -235,6 +240,76 @@ async function runTests() {
     console.error("❌ Invalid Trip schema (reversed dates) mistakenly passed");
   } catch (err) {
     console.log("✅ Invalid Trip schema (reversed dates) correctly rejected");
+  }
+
+  // 10. Test AI Service Fallback Engine
+  console.log("\n10. Testing AI Service Fallback Engine...");
+  const originalDestFind = Destination.find;
+  Destination.find = (() => Promise.resolve([
+    { name: "Goa", country: "India", category: "Beach", averageCost: 40, popularPlaces: ["Calangute"], activities: ["Swimming"] },
+    { name: "Manali", country: "India", category: "Mountain", averageCost: 50, popularPlaces: ["Solang"], activities: ["Skiing"] }
+  ] as any)) as any;
+
+  const originalWeatherFindOne = Weather.findOne;
+  Weather.findOne = (() => Promise.resolve({
+    destinationName: "goa",
+    temperature: 28,
+    condition: "Sunny",
+    humidity: 60,
+    windSpeed: 10,
+    forecast: [
+      { date: "2026-06-21", temperature: 28, condition: "Sunny" }
+    ]
+  } as any)) as any;
+
+  try {
+    const responseText = await getAIChatResponse({
+      message: "What is the weather in Goa?",
+      history: []
+    });
+    if (responseText.includes("weather") || responseText.includes("Goa")) {
+      console.log("✅ AI Service fallback engine resolved weather query correctly");
+    } else {
+      console.error("❌ AI Service weather fallback failed. Output:", responseText);
+    }
+
+    const responseText2 = await getAIChatResponse({
+      message: "What should I pack for Manali?",
+      history: []
+    });
+    if (responseText2.includes("packing suggestions") || responseText2.includes("pack") || responseText2.includes("Manali")) {
+      console.log("✅ AI Service fallback engine resolved packing query correctly");
+    } else {
+      console.error("❌ AI Service packing fallback failed. Output:", responseText2);
+    }
+  } catch (err) {
+    console.error("❌ AI Service test failed with error:", err);
+  } finally {
+    Destination.find = originalDestFind;
+    Weather.findOne = originalWeatherFindOne;
+  }
+
+  // 11. Test Chat Mongoose Schema validation
+  console.log("\n11. Testing Chat Mongoose Schema validation...");
+  try {
+    const dummyUser = new mongoose.Types.ObjectId();
+    const chatDoc = new Chat({
+      user: dummyUser,
+      session: "session_abc",
+      messages: [
+        { role: "user", content: "hello", timestamp: new Date() },
+        { role: "model", content: "hi!", timestamp: new Date() }
+      ]
+    });
+    
+    const validateErr = chatDoc.validateSync();
+    if (!validateErr) {
+      console.log("✅ Chat Schema validation succeeds with correct parameters");
+    } else {
+      console.error("❌ Chat Schema validation failed on valid data", validateErr);
+    }
+  } catch (err) {
+    console.error("❌ Chat Mongoose schema test failed", err);
   }
 }
 

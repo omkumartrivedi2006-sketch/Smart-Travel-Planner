@@ -4,10 +4,10 @@ import { useLocation, useParams } from "wouter";
 import { Star, MapPin, Heart, Compass } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
-// Mock Database for Destinations
 interface Destination {
-  id: number;
+  id: string;
   name: string;
   country: string;
   category: string;
@@ -27,105 +27,147 @@ interface Destination {
   visa: string;
 }
 
-const DESTINATIONS_DB: Record<number, Destination> = {
-  1: {
-    id: 1,
-    name: "Bali, Indonesia",
-    country: "Indonesia",
-    category: "Beach",
-    style: "Tropical",
-    rating: 4.8,
-    reviewsCount: 1234,
-    budgetLevel: "Budget-Friendly",
-    bestTime: "Apr - Oct",
-    avgTemp: "28°C",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/hero-destination-VZ2wPExvNymjQuKmtGaKGR.webp",
-    about: "Bali is an Indonesian island known for its forested volcanic mountains, iconic rice paddies, beaches and coral reefs. The island is home to religious sites such as cliffside Uluwatu Temple. To the south, the beachside city of Denpasar is Bali's largest town, while Seminyak is an exclusive beach resort area with international restaurants and bars.",
-    aboutExtra: "Whether you're seeking relaxation on pristine beaches, adventure in rice terraces, or cultural experiences in ancient temples, Bali offers something for every traveler.",
-    attractions: ["Ubud Rice Terraces", "Tanah Lot Temple", "Seminyak Beach", "Mount Batur", "Sacred Monkey Forest", "Tegallalang Rice Paddies"],
-    weather: [
-      { day: "Mon", temp: "28°", icon: "☀️" },
-      { day: "Tue", temp: "27°", icon: "⛅" },
-      { day: "Wed", temp: "26°", icon: "🌧️" },
-      { day: "Thu", temp: "28°", icon: "☀️" },
-      { day: "Fri", temp: "29°", icon: "☀️" },
-    ],
-    currency: "Indonesian Rupiah (IDR)",
-    language: "Indonesian, English",
-    visa: "Visa on Arrival",
-  },
-  2: {
-    id: 2,
-    name: "Swiss Alps",
-    country: "Switzerland",
-    category: "Adventure",
-    style: "Alpine",
-    rating: 4.9,
-    reviewsCount: 856,
-    budgetLevel: "Premium",
-    bestTime: "Dec - Apr / Jun - Sep",
-    avgTemp: "5°C",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/mountain-adventure-Q6V2CVvpTrLANZMyFudGT9.webp",
-    about: "The Swiss Alps are the alpine region of Switzerland, representing a major natural feature of the country. They are famous worldwide for winter skiing, summer hiking, mountaineering, and scenic cogwheel train journeys. The high peaks of the Matterhorn and Jungfrau attract millions of nature enthusiasts and adventure seekers annually.",
-    aboutExtra: "From luxury ski resorts like Zermatt and St. Moritz to tranquil valley villages, the Swiss Alps offer unparalleled pristine alpine beauty, clean air, and world-class mountain sports.",
-    attractions: ["The Matterhorn", "Jungfraujoch Peak", "Zermatt Ski Resort", "Lake Geneva Valley", "Interlaken Lakes", "Rhine Falls Climb"],
-    weather: [
-      { day: "Mon", temp: "6°", icon: "❄️" },
-      { day: "Tue", temp: "5°", icon: "⛅" },
-      { day: "Wed", temp: "3°", icon: "🌧️" },
-      { day: "Thu", temp: "7°", icon: "☀️" },
-      { day: "Fri", temp: "8°", icon: "☀️" },
-    ],
-    currency: "Swiss Franc (CHF)",
-    language: "German, French, Italian",
-    visa: "Schengen Visa Required",
-  },
-  3: {
-    id: 3,
-    name: "Madrid, Spain",
-    country: "Spain",
-    category: "Cultural",
-    style: "Metropolitan",
-    rating: 4.7,
-    reviewsCount: 2104,
-    budgetLevel: "Mid-range",
-    bestTime: "Sep - Nov / Mar - May",
-    avgTemp: "18°C",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/city-exploration-S649PLnYoeWqXTwbRXN4hY.webp",
-    about: "Madrid, Spain's central capital, is a city of elegant boulevards and expansive, manicured parks such as the Buen Retiro. It’s renowned for its rich repositories of European art, including the Prado Museum’s works by Goya, Velázquez and other Spanish masters. The heart of old Hapsburg Madrid is the portico-lined Plaza Mayor.",
-    aboutExtra: "Famed for its lively street life, culinary excellence (tapas crawls), world-famous football culture, and late-night social energy, Madrid is a vibrant crossroad of Spanish tradition and modernity.",
-    attractions: ["Royal Palace of Madrid", "Prado Museum", "Retiro Park", "Plaza Mayor", "Gran Vía Boulevard", "Mercado de San Miguel"],
-    weather: [
-      { day: "Mon", temp: "19°", icon: "☀️" },
-      { day: "Tue", temp: "18°", icon: "☀️" },
-      { day: "Wed", temp: "16°", icon: "⛅" },
-      { day: "Thu", temp: "18°", icon: "☀️" },
-      { day: "Fri", temp: "21°", icon: "☀️" },
-    ],
-    currency: "Euro (EUR)",
-    language: "Spanish",
-    visa: "Schengen Visa Required",
-  },
+const getCurrency = (country: string) => {
+  const c = country.toLowerCase();
+  if (c.includes("india")) return "Indian Rupee (INR)";
+  if (c.includes("switzerland") || c.includes("swiss")) return "Swiss Franc (CHF)";
+  if (c.includes("spain") || c.includes("france") || c.includes("italy") || c.includes("netherlands") || c.includes("czech")) return "Euro (EUR)";
+  if (c.includes("united kingdom") || c.includes("london")) return "British Pound (GBP)";
+  if (c.includes("united states") || c.includes("usa") || c.includes("new york")) return "US Dollar (USD)";
+  if (c.includes("japan")) return "Japanese Yen (JPY)";
+  if (c.includes("singapore")) return "Singapore Dollar (SGD)";
+  if (c.includes("indonesia") || c.includes("bali")) return "Indonesian Rupiah (IDR)";
+  if (c.includes("thailand")) return "Thai Baht (THB)";
+  if (c.includes("vietnam")) return "Vietnamese Dong (VND)";
+  if (c.includes("united arab emirates") || c.includes("dubai")) return "UAE Dirham (AED)";
+  return "Local Currency";
+};
+
+const getLanguage = (country: string) => {
+  const c = country.toLowerCase();
+  if (c.includes("india")) return "Hindi, English, Regional";
+  if (c.includes("spain")) return "Spanish";
+  if (c.includes("france")) return "French";
+  if (c.includes("italy")) return "Italian";
+  if (c.includes("japan")) return "Japanese";
+  if (c.includes("indonesia") || c.includes("bali")) return "Indonesian, Balinese, English";
+  if (c.includes("united arab emirates") || c.includes("dubai")) return "Arabic, English";
+  return "English, Local Language";
+};
+
+const getVisa = (country: string) => {
+  const c = country.toLowerCase();
+  if (c.includes("india")) return "Visa on Arrival / eVisa";
+  if (c.includes("spain") || c.includes("france") || c.includes("italy") || c.includes("switzerland") || c.includes("netherlands") || c.includes("czech")) return "Schengen Visa / Visa-Free";
+  return "Visa on Arrival / Visa-Free";
+};
+
+const getDayName = (dateStr: string) => {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return days[new Date(dateStr).getDay()];
+};
+
+const getWeatherIcon = (cond: string) => {
+  const c = cond.toLowerCase();
+  if (c.includes("sun") || c.includes("clear")) return "☀️";
+  if (c.includes("rain") || c.includes("drizzle") || c.includes("shower")) return "🌧️";
+  if (c.includes("snow")) return "❄️";
+  if (c.includes("wind") || c.includes("breeze")) return "💨";
+  return "⛅";
 };
 
 export default function DestinationDetails() {
   const [, navigate] = useLocation();
   const params = useParams();
-  const id = Number(params.id);
+  const id = params.id; // string ObjectId
   
   const [destination, setDestination] = useState<Destination | null>(null);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const dest = DESTINATIONS_DB[id];
-    if (dest) {
-      setDestination(dest);
-      
-      // Check wishlist status from localStorage
-      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-      setIsWishlisted(wishlist.includes(dest.name));
+    if (!id) return;
+    
+    async function loadDetails() {
+      setIsLoading(true);
+      try {
+        // 1. Fetch Destination details
+        const destRes = await apiFetch(`/api/destinations/${id}`);
+        if (!destRes || !destRes.data || !destRes.data.destination) {
+          throw new Error("Destination details not found");
+        }
+        
+        const d = destRes.data.destination;
+
+        // 2. Fetch Weather details (live cache)
+        let weatherList: { day: string; temp: string; icon: string }[] = [];
+        try {
+          const weatherRes = await apiFetch(`/api/weather/${encodeURIComponent(d.name)}`);
+          if (weatherRes && weatherRes.data && weatherRes.data.weather && weatherRes.data.weather.forecast) {
+            weatherList = weatherRes.data.weather.forecast.map((f: any) => ({
+              day: getDayName(f.date),
+              temp: `${Math.round(f.temperature)}°`,
+              icon: getWeatherIcon(f.condition),
+            }));
+          }
+        } catch (weatherErr) {
+          console.error("Failed to load weather forecast", weatherErr);
+          // generate fallback forecast if weather API call fails
+          const today = new Date();
+          weatherList = Array.from({ length: 5 }).map((_, i) => {
+            const nextDate = new Date(today);
+            nextDate.setDate(today.getDate() + i + 1);
+            return {
+              day: getDayName(nextDate.toISOString().split("T")[0]),
+              temp: d.category === "Mountain" ? "5°" : "28°",
+              icon: d.category === "Mountain" ? "❄️" : "☀️",
+            };
+          });
+        }
+
+        // Map to UI model
+        const mappedDest: Destination = {
+          id: d._id,
+          name: d.name,
+          country: d.country,
+          category: d.category,
+          style: d.category === "Beach" ? "Coastal" : d.category === "Mountain" ? "Alpine" : "Scenic",
+          rating: d.rating || 4.5,
+          reviewsCount: Math.floor(Math.random() * 1500) + 200,
+          budgetLevel: d.averageCost < 50 ? "Budget-Friendly" : d.averageCost <= 150 ? "Mid-range" : "Premium",
+          bestTime: d.bestTimeToVisit,
+          avgTemp: d.category === "Mountain" ? "6°C" : "28°C",
+          image: d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+          about: d.description,
+          aboutExtra: `Experience the best of ${d.name} in ${d.country}. Known as a top destination for ${d.category.toLowerCase()} travelers, offering outstanding activities and memorable sightseeing.`,
+          attractions: d.activities && d.activities.length > 0 ? d.activities : ["Sightseeing", "Local Tours"],
+          weather: weatherList,
+          currency: getCurrency(d.country),
+          language: getLanguage(d.country),
+          visa: getVisa(d.country),
+        };
+
+        setDestination(mappedDest);
+
+        // Check wishlist status from localStorage
+        const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+        setIsWishlisted(wishlist.includes(mappedDest.name));
+      } catch (err: any) {
+        toast.error("Failed to load destination details: " + err.message);
+      } finally {
+        setIsLoading(false);
+      }
     }
+    loadDetails();
   }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <p className="text-lg text-slate-600 font-medium animate-pulse">Loading destination details...</p>
+      </div>
+    );
+  }
 
   if (!destination) {
     return (

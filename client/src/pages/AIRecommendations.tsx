@@ -5,54 +5,18 @@ import { Slider } from "@/components/ui/slider";
 import { Sparkles, Star, MapPin, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 interface RecItem {
-  id: number;
+  _id: string;
   name: string;
   country: string;
   category: string;
-  style: string;
-  minBudget: number;
-  maxBudget: number;
-  reason: string;
-  image: string;
+  description: string;
+  averageCost: number;
+  image?: string;
+  rating: number;
 }
-
-const RECOMMENDATIONS_POOL: RecItem[] = [
-  {
-    id: 1,
-    name: "Bali, Indonesia",
-    country: "Indonesia",
-    category: "Beach",
-    style: "Budget",
-    minBudget: 500,
-    maxBudget: 2000,
-    reason: "A tropical paradise featuring gorgeous beaches, active volcano hikes, and ancient heritage temples that perfectly suit budget travelers.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/hero-destination-VZ2wPExvNymjQuKmtGaKGR.webp",
-  },
-  {
-    id: 2,
-    name: "Swiss Alps",
-    country: "Switzerland",
-    category: "Adventure",
-    style: "Luxury",
-    minBudget: 3000,
-    maxBudget: 10000,
-    reason: "Offers breathtaking high-altitude winter skiing, summer hiking, and alpine chalets built for premium luxury budgets.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/mountain-adventure-Q6V2CVvpTrLANZMyFudGT9.webp",
-  },
-  {
-    id: 3,
-    name: "Madrid, Spain",
-    country: "Spain",
-    category: "Cultural",
-    style: "Comfort",
-    minBudget: 1500,
-    maxBudget: 4000,
-    reason: "Known for world-class Prado art galleries, tapas culture, historic squares, and vibrant urban social vibe.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/city-exploration-S649PLnYoeWqXTwbRXN4hY.webp",
-  },
-];
 
 export default function AIRecommendations() {
   const [, navigate] = useLocation();
@@ -61,17 +25,37 @@ export default function AIRecommendations() {
   const [travelStyle, setTravelStyle] = useState("Comfort");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<(RecItem & { score: number })[]>([]);
+  const [destinationsList, setDestinationsList] = useState<RecItem[]>([]);
+  const [results, setResults] = useState<(RecItem & { score: number; reason: string })[]>([]);
 
-  // Parse query parameters
+  // Fetch real destinations and parse query parameters
   useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const interestsParam = queryParams.get("interests");
-    if (interestsParam) {
-      setSelectedInterests([interestsParam]);
+    async function fetchDestinations() {
+      try {
+        setIsLoading(true);
+        const res = await apiFetch("/api/destinations?limit=100");
+        if (res && res.data && res.data.destinations) {
+          const list = res.data.destinations;
+          setDestinationsList(list);
+
+          const queryParams = new URLSearchParams(window.location.search);
+          const interestsParam = queryParams.get("interests");
+          const initialInterests = interestsParam ? [interestsParam] : [];
+          if (interestsParam) {
+            setSelectedInterests([interestsParam]);
+          }
+
+          // Initial recommendations
+          generateRecommendations(list, budget, travelStyle, initialInterests);
+        }
+      } catch (e) {
+        console.error("Failed to load destinations", e);
+        toast.error("Failed to fetch destinations from backend.");
+      } finally {
+        setIsLoading(false);
+      }
     }
-    // Calculate initial recommendation scores
-    generateRecommendations(2500, "Comfort", interestsParam ? [interestsParam] : []);
+    fetchDestinations();
   }, []);
 
   const toggleInterest = (interest: string) => {
@@ -81,38 +65,61 @@ export default function AIRecommendations() {
   };
 
   const generateRecommendations = (
+    pool: RecItem[],
     currentBudget: number,
     style: string,
     interests: string[]
   ) => {
-    const list = RECOMMENDATIONS_POOL.map((item) => {
+    const list = pool.map((item) => {
       let score = 70; // Base score
 
-      // Budget check
-      if (currentBudget >= item.minBudget && currentBudget <= item.maxBudget) {
+      // 1. Budget checking
+      // Map budget style thresholds
+      // cost < 50 = "Budget", 50-150 = "Comfort/Mid-range", >150 = "Luxury/Premium"
+      const cost = item.averageCost;
+      let destStyle = "Budget";
+      if (cost >= 50 && cost <= 150) {
+        destStyle = "Comfort";
+      } else if (cost > 150) {
+        destStyle = "Luxury";
+      }
+
+      if (destStyle.toLowerCase() === style.toLowerCase()) {
         score += 15;
-      } else if (currentBudget > item.maxBudget) {
-        score += 10; // Can easily afford
       } else {
-        score -= 20; // Underbudgeted
+        score -= 10;
       }
 
-      // Style check
-      if (item.style.toLowerCase() === style.toLowerCase()) {
+      // Convert daily budget limit from slider (in INR) to USD approx (divide by 80)
+      const dailyLimitUsd = (currentBudget / (duration || 7)) / 80;
+      if (dailyLimitUsd >= cost) {
         score += 10;
+      } else {
+        score -= 20; // daily limit is too low for this destination
       }
 
-      // Interests category check
-      if (interests.includes(item.category)) {
-        score += 15;
+      // 2. Category interest check
+      if (interests.length > 0) {
+        const hasMatchingInterest = interests.some(interest => 
+          item.category.toLowerCase().includes(interest.toLowerCase()) ||
+          (item.description && item.description.toLowerCase().includes(interest.toLowerCase()))
+        );
+        if (hasMatchingInterest) {
+          score += 15;
+        } else {
+          score -= 10;
+        }
       }
 
       // Cap score between 35 and 99
       score = Math.max(35, Math.min(99, score));
 
+      const reason = `${item.description} It matches your ${style.toLowerCase()} style preferences, fits your budget constraints, and offers excellent ${item.category.toLowerCase()} sights.`;
+
       return {
         ...item,
         score,
+        reason,
       };
     }).sort((a, b) => b.score - a.score);
 
@@ -122,10 +129,10 @@ export default function AIRecommendations() {
   const handleGetRecommendations = () => {
     setIsLoading(true);
     setTimeout(() => {
-      generateRecommendations(budget, travelStyle, selectedInterests);
+      generateRecommendations(destinationsList, budget, travelStyle, selectedInterests);
       setIsLoading(false);
       toast.success("AI Recommendations generated!");
-    }, 1200);
+    }, 1000);
   };
 
   return (
@@ -147,7 +154,7 @@ export default function AIRecommendations() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filter Sidebar */}
           <div className="lg:col-span-1">
-            <Card className="border-0 shadow-lg p-6 sticky top-24 bg-white">
+            <Card className="border-0 shadow-lg p-6 bg-white">
               <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-orange-500" />
                 Preferences
@@ -156,20 +163,20 @@ export default function AIRecommendations() {
               <div className="space-y-6">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-sm font-semibold text-slate-700">Budget Limit</label>
+                    <label className="text-sm font-semibold text-slate-700">Total Budget</label>
                     <span className="text-sm font-bold text-teal-600">₹{budget}</span>
                   </div>
                   <Slider
                     value={[budget]}
                     onValueChange={(val) => setBudget(val[0])}
                     min={500}
-                    max={10000}
-                    step={100}
+                    max={20000}
+                    step={250}
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-slate-400 mt-1">
                     <span>₹500</span>
-                    <span>₹10,000</span>
+                    <span>₹20,000</span>
                   </div>
                 </div>
 
@@ -204,7 +211,7 @@ export default function AIRecommendations() {
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-3">Interests</label>
                   <div className="space-y-2">
-                    {["Beach", "Adventure", "Cultural", "Food", "Nature"].map((interest) => (
+                    {["Beach", "Mountain", "City", "Heritage", "Nature", "Adventure"].map((interest) => (
                       <label key={interest} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -232,7 +239,6 @@ export default function AIRecommendations() {
           {/* Recommendations list */}
           <div className="lg:col-span-3">
             {isLoading ? (
-              // Phase 7 Skeleton Loaders
               <div className="space-y-6">
                 {[1, 2].map((idx) => (
                   <Card key={idx} className="border-0 shadow-lg overflow-hidden bg-white p-0">
@@ -253,22 +259,36 @@ export default function AIRecommendations() {
                   </Card>
                 ))}
               </div>
+            ) : results.length === 0 ? (
+              <Card className="border-0 shadow-md p-10 text-center bg-white text-slate-600">
+                No destinations match your criteria. Try widening your budget or selecting fewer interests.
+              </Card>
             ) : (
               <div className="space-y-6">
                 {results.map((rec) => (
                   <Card
-                    key={rec.id}
+                    key={rec._id}
                     className="border-0 shadow-lg overflow-hidden hover:shadow-xl transition-all cursor-pointer bg-white"
-                    onClick={() => navigate(`/destinations/${rec.id}`)}
+                    onClick={() => navigate(`/destinations/${rec._id}`)}
                   >
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
                       {/* Image */}
-                      <div className="md:col-span-1 h-48 md:h-auto overflow-hidden">
-                        <img
-                          src={rec.image}
-                          alt={rec.name}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
+                      <div className="md:col-span-1 h-48 md:h-auto overflow-hidden bg-slate-100 relative">
+                        {rec.image ? (
+                          <img
+                            src={rec.image}
+                            alt={rec.name}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-teal-600 bg-teal-50/50">
+                            <MapPin className="w-12 h-12" />
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-semibold flex items-center gap-1">
+                          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                          {rec.rating || 4.5}
+                        </div>
                       </div>
 
                       {/* Content */}
@@ -302,7 +322,7 @@ export default function AIRecommendations() {
                             className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/destinations/${rec.id}`);
+                              navigate(`/destinations/${rec._id}`);
                             }}
                           >
                             View Details
@@ -312,7 +332,7 @@ export default function AIRecommendations() {
                             className="flex-1 border-teal-600 text-teal-600 hover:bg-teal-50"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/planner?destination=${encodeURIComponent(rec.name)}&budget=${budget}`);
+                              navigate(`/planner?destination=${encodeURIComponent(rec.name)}&budget=${budget}&travelers=2&destinationId=${rec._id}`);
                             }}
                           >
                             Plan Trip

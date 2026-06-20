@@ -4,55 +4,52 @@ import { useLocation } from "wouter";
 import { Search, Filter, Star, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useEffect } from "react";
-
-const DESTINATIONS_LIST = [
-  {
-    id: 1,
-    name: "Bali, Indonesia",
-    country: "Indonesia",
-    category: "Beach",
-    budget: "Budget",
-    rating: 4.8,
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/hero-destination-VZ2wPExvNymjQuKmtGaKGR.webp",
-  },
-  {
-    id: 2,
-    name: "Swiss Alps",
-    country: "Switzerland",
-    category: "Adventure",
-    budget: "Premium",
-    rating: 4.9,
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/mountain-adventure-Q6V2CVvpTrLANZMyFudGT9.webp",
-  },
-  {
-    id: 3,
-    name: "Madrid, Spain",
-    country: "Spain",
-    category: "Cultural",
-    budget: "Mid-range",
-    rating: 4.7,
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/city-exploration-S649PLnYoeWqXTwbRXN4hY.webp",
-  },
-];
+import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 export default function Destinations() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [selectedBudgets, setSelectedBudgets] = useState<string[]>([]);
+  const [destinationsList, setDestinationsList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Parse query parameters
+  // Parse query parameters and fetch database destinations
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const searchParam = queryParams.get("search");
     if (searchParam) {
       setSearchQuery(searchParam);
     }
+
+    async function loadDestinations() {
+      try {
+        const res = await apiFetch("/api/destinations?limit=100");
+        if (res && res.data && res.data.destinations) {
+          const mapped = res.data.destinations.map((d: any) => ({
+            id: d._id,
+            name: d.name,
+            country: d.country,
+            category: d.category,
+            budget: d.averageCost < 50 ? "Budget" : d.averageCost <= 150 ? "Mid-range" : "Premium",
+            rating: d.rating || 4.5,
+            image: d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+          }));
+          setDestinationsList(mapped);
+        }
+      } catch (err: any) {
+        toast.error("Failed to load destinations: " + err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadDestinations();
   }, []);
 
   // Real-time dynamic filtering using useMemo for performance optimization
   const filteredDestinations = useMemo(() => {
-    return DESTINATIONS_LIST.filter((dest) => {
+    return destinationsList.filter((dest) => {
       const matchesSearch =
         dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         dest.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -66,7 +63,7 @@ export default function Destinations() {
 
       return matchesSearch && matchesCategory && matchesBudget;
     });
-  }, [searchQuery, selectedCats, selectedBudgets]);
+  }, [searchQuery, selectedCats, selectedBudgets, destinationsList]);
 
   const toggleCategory = (cat: string) => {
     setSelectedCats((prev) =>
@@ -190,7 +187,11 @@ export default function Destinations() {
             </div>
 
             {/* Destinations Grid */}
-            {filteredDestinations.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12">
+                <p className="text-lg text-slate-600 font-medium animate-pulse">Loading destinations...</p>
+              </div>
+            ) : filteredDestinations.length === 0 ? (
               <Card className="border-0 shadow-lg p-12 text-center bg-white">
                 <h3 className="text-xl font-bold text-slate-900 mb-2">No Destinations Found</h3>
                 <p className="text-slate-600 mb-6">We couldn't find any destinations matching your current filters.</p>

@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { Compass } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api";
 
 export default function Register() {
   const [, navigate] = useLocation();
@@ -13,8 +14,9 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim()) {
@@ -46,10 +48,21 @@ export default function Register() {
       return;
     }
 
-    toast.success("Account created successfully! Please sign in.");
-    setTimeout(() => {
-      navigate("/login");
-    }, 1200);
+    setIsLoading(true);
+    try {
+      await apiFetch("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password }),
+      });
+      toast.success("Account created successfully! Please sign in.");
+      setTimeout(() => {
+        navigate("/login");
+      }, 1200);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create account. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -119,8 +132,8 @@ export default function Register() {
               <span className="text-sm text-slate-600">I agree to the Terms & Conditions</span>
             </label>
 
-            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2">
-              Create Account
+            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
 
