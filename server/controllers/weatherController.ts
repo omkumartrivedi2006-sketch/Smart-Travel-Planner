@@ -3,6 +3,7 @@ import { Destination } from "../models/Destination";
 import { Weather, IForecastItem } from "../models/Weather";
 import { NotFoundError } from "../utils/errors";
 import { logger } from "../utils/logger";
+import axios from "axios";
 
 /**
  * Generate mock weather data based on destination parameters
@@ -78,6 +79,55 @@ function generateMockWeather(destinationName: string, category: string, country:
 }
 
 /**
+ * Fetch weather from OpenWeatherMap API
+ */
+async function fetchOpenWeather(destinationName: string, apiKey: string) {
+  const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(destinationName)}&appid=${apiKey}&units=metric`;
+  const response = await axios.get(url);
+  const data = response.data;
+
+  const list = data.list || [];
+  const current = list[0];
+  if (!current) {
+    throw new Error("No weather forecasts returned from OpenWeatherMap");
+  }
+
+  const temperature = Math.round(current.main.temp);
+  const condition = current.weather[0]?.main || "Clear";
+  const humidity = current.main.humidity;
+  const windSpeed = Math.round(current.wind.speed * 3.6); // convert m/s to km/h
+
+  // Generate 5-day forecast by extracting 1 record per day (roughly every 24h)
+  const forecast: IForecastItem[] = [];
+  const addedDays = new Set<string>();
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  for (const item of list) {
+    const dateTimeStr = item.dt_txt || "";
+    const dateStr = dateTimeStr.split(" ")[0] || new Date(item.dt * 1000).toISOString().split("T")[0];
+
+    if (dateStr !== todayStr && !addedDays.has(dateStr) && forecast.length < 5) {
+      addedDays.add(dateStr);
+      forecast.push({
+        date: dateStr,
+        temperature: Math.round(item.main.temp),
+        condition: item.weather[0]?.main || "Clear",
+      });
+    }
+  }
+
+  return {
+    destinationName: destinationName.toLowerCase(),
+    temperature,
+    condition,
+    humidity,
+    windSpeed,
+    forecast,
+    lastUpdated: new Date(),
+  };
+}
+
+/**
  * Get weather for a given destination (with cache refresh check)
  * GET /api/weather/:destination
  */
@@ -114,11 +164,29 @@ export async function getDestinationWeather(
 
     if (needsRefresh) {
       logger.info(`Generating/Refreshing weather details for: ${foundDestination.name}`);
-      const freshWeatherData = generateMockWeather(
-        foundDestination.name,
-        foundDestination.category,
-        foundDestination.country
-      );
+      
+      let freshWeatherData;
+      const apiKey = process.env.OPENWEATHER_API_KEY;
+
+      if (apiKey && apiKey.trim() !== "" && apiKey.trim() !== "YourOpenWeatherAPIKeyHere") {
+        try {
+          logger.info(`Fetching live weather from OpenWeatherMap for ${foundDestination.name}...`);
+          freshWeatherData = await fetchOpenWeather(foundDestination.name, apiKey.trim());
+        } catch (err: any) {
+          logger.warn(`OpenWeatherMap fetch failed for ${foundDestination.name}: ${err.message || err}. Falling back to mock generator.`);
+          freshWeatherData = generateMockWeather(
+            foundDestination.name,
+            foundDestination.category,
+            foundDestination.country
+          );
+        }
+      } else {
+        freshWeatherData = generateMockWeather(
+          foundDestination.name,
+          foundDestination.category,
+          foundDestination.country
+        );
+      }
 
       if (weatherRecord) {
         // Update existing cache

@@ -21,6 +21,8 @@ import chatRoutes from "./routes/chatRoutes";
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware";
 import fs from "fs";
 import swaggerUi from "swagger-ui-express";
+import { Destination } from "./models/Destination";
+import { seed } from "./seed";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +30,18 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   // 1. Connect to Database
   await connectDB();
+
+  // 1b. Auto-seed if database is empty (e.g. for in-memory MongoDB)
+  try {
+    const destCount = await Destination.countDocuments();
+    if (destCount === 0) {
+      logger.info("Database is empty. Running auto-seeding script...");
+      await seed(true);
+      logger.info("Auto-seeding completed.");
+    }
+  } catch (err) {
+    logger.error("Failed to run database auto-seeding:", err);
+  }
 
   const app = express();
   const server = createServer(app);

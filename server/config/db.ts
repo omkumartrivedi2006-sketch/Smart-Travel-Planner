@@ -1,21 +1,35 @@
 import mongoose from "mongoose";
 import { logger } from "../utils/logger";
+import { MongoMemoryServer } from "mongodb-memory-server";
+
+let mongod: MongoMemoryServer | null = null;
 
 export async function connectDB(): Promise<void> {
-  const mongodbUri = process.env.MONGODB_URI;
+  let mongodbUri = process.env.MONGODB_URI;
 
-  if (!mongodbUri) {
-    logger.error("MONGODB_URI environment variable is missing!");
-    process.exit(1);
+  // If MONGODB_URI is not set, or points to localhost/127.0.0.1, spin up an in-memory MongoDB server
+  if (!mongodbUri || mongodbUri.includes("localhost") || mongodbUri.includes("127.0.0.1")) {
+    try {
+      logger.info("Initializing in-memory MongoDB server for zero-config development...");
+      mongod = await MongoMemoryServer.create();
+      mongodbUri = mongod.getUri();
+      logger.info(`In-memory MongoDB started at: ${mongodbUri}`);
+    } catch (err) {
+      logger.error("Failed to start in-memory MongoDB server:", err);
+      if (!mongodbUri) {
+        logger.error("No MONGODB_URI provided and memory server failed to start.");
+        process.exit(1);
+      }
+    }
   }
 
   try {
     mongoose.connection.on("connecting", () => {
-      logger.info("Connecting to MongoDB Atlas...");
+      logger.info("Connecting to MongoDB...");
     });
 
     mongoose.connection.on("connected", () => {
-      logger.info("Successfully connected to MongoDB Atlas.");
+      logger.info("Successfully connected to MongoDB.");
     });
 
     mongoose.connection.on("error", (err) => {
@@ -32,3 +46,12 @@ export async function connectDB(): Promise<void> {
     process.exit(1);
   }
 }
+
+export async function closeDB(): Promise<void> {
+  await mongoose.disconnect();
+  if (mongod) {
+    await mongod.stop();
+    logger.info("In-memory MongoDB server stopped.");
+  }
+}
+

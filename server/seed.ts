@@ -729,17 +729,18 @@ const destinationsData = [
   }
 ];
 
-async function seed() {
-  const mongodbUri = process.env.MONGODB_URI;
-  if (!mongodbUri) {
-    logger.error("MONGODB_URI is not set in environment!");
-    process.exit(1);
-  }
-
+export async function seed(isAutoSeed = false) {
   try {
-    logger.info("Connecting to MongoDB for seeding...");
-    await mongoose.connect(mongodbUri);
-    logger.info("Connected to MongoDB.");
+    if (!isAutoSeed) {
+      const mongodbUri = process.env.MONGODB_URI;
+      if (!mongodbUri) {
+        logger.error("MONGODB_URI is not set in environment!");
+        process.exit(1);
+      }
+      logger.info("Connecting to MongoDB for seeding...");
+      await mongoose.connect(mongodbUri);
+      logger.info("Connected to MongoDB.");
+    }
 
     // 1. Clear existing collections
     logger.info("Clearing Destination and Weather collections...");
@@ -814,11 +815,17 @@ async function seed() {
     logger.info("Weather cache successfully seeded.");
 
     logger.info("=== SEEDING COMPLETED SUCCESSFULY ===");
-    process.exit(0);
+    if (!isAutoSeed) {
+      process.exit(0);
+    }
   } catch (error) {
     logger.error("Error seeding the database:", error);
-    process.exit(1);
+    if (!isAutoSeed) {
+      process.exit(1);
+    }
   }
 }
 
-seed();
+if (process.argv[1] && (process.argv[1].endsWith("seed.ts") || process.argv[1].endsWith("seed"))) {
+  seed();
+}
