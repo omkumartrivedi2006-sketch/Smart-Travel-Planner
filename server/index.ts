@@ -11,6 +11,8 @@ import authRoutes from "./routes/authRoutes";
 import destinationRoutes from "./routes/destinationRoutes";
 import weatherRoutes from "./routes/weatherRoutes";
 import routeRoutes from "./routes/routeRoutes";
+import tripRoutes from "./routes/tripRoutes";
+import budgetRoutes from "./routes/budgetRoutes";
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,6 +49,8 @@ async function startServer() {
   app.use("/api/destinations", destinationRoutes);
   app.use("/api/weather", weatherRoutes);
   app.use("/api/routes", routeRoutes);
+  app.use("/api/trips", tripRoutes);
+  app.use("/api/budget", budgetRoutes);
 
   // 5. API 404 Handler (ensures unknown /api requests don't fall back to client HTML)
   app.all("/api/*", notFoundHandler);

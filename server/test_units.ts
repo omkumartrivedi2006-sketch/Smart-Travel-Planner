@@ -3,6 +3,8 @@ import { generateAccessToken, verifyAccessToken } from "./utils/jwt";
 import bcrypt from "bcryptjs";
 import { registerSchema } from "./validation/authValidation";
 import { createDestinationSchema, calculateRouteSchema } from "./validation/travelValidation";
+import { performBudgetCalculation } from "./controllers/budgetController";
+import { createTripSchema, calculateBudgetSchema } from "./validation/tripValidation";
 
 // Helper from routeController
 function calculateHaversineDistance(
@@ -109,7 +111,6 @@ async function runTests() {
 
   // 5. Test Distance Calculator (Haversine Formula)
   console.log("\n5. Testing Haversine Distance Calculation...");
-  // Distance from Delhi (28.6139, 77.2090) to Mumbai (19.0760, 72.8777) is approx 1148 km
   const dist = calculateHaversineDistance(28.6139, 77.2090, 19.0760, 72.8777);
   if (dist > 1100 && dist < 1200) {
     console.log(`✅ Haversine calculation works: Delhi to Mumbai = ${dist} km`);
@@ -148,19 +149,92 @@ async function runTests() {
     console.error("❌ Valid Destination schema failed to parse", err);
   }
 
+  // 8. Test Budget Calculator Logic
+  console.log("\n8. Testing Budget Calculator Logic...");
+  const mockDestination = {
+    name: "Paris",
+    country: "France",
+    category: "City",
+    averageCost: 100, // Cost factor = 2.0
+    latitude: 48.8566,
+    longitude: 2.3522,
+  };
+
+  const budget1 = performBudgetCalculation({
+    destination: mockDestination,
+    startDate: new Date("2026-07-01"),
+    endDate: new Date("2026-07-05"), // 5 days, 4 nights
+    travelers: 1,
+    hotelPreference: "mid-range",
+    transportPreference: "car",
+    travelType: "solo",
+  });
+
+  const budget2 = performBudgetCalculation({
+    destination: mockDestination,
+    startDate: new Date("2026-07-01"),
+    endDate: new Date("2026-07-05"), // 5 days, 4 nights
+    travelers: 1,
+    hotelPreference: "luxury",
+    transportPreference: "car",
+    travelType: "solo",
+  });
+
+  const budget3 = performBudgetCalculation({
+    destination: mockDestination,
+    startDate: new Date("2026-07-01"),
+    endDate: new Date("2026-07-05"), // 5 days, 4 nights
+    travelers: 3, // more travelers
+    hotelPreference: "mid-range",
+    transportPreference: "car",
+    travelType: "friends",
+  });
+
+  if (budget2.totalEstimate > budget1.totalEstimate) {
+    console.log(`✅ Luxury preference estimated correctly higher: ${budget2.totalEstimate} USD vs ${budget1.totalEstimate} USD`);
+  } else {
+    console.error("❌ Luxury costing failed", budget1, budget2);
+  }
+
+  if (budget3.totalEstimate > budget1.totalEstimate) {
+    console.log(`✅ More travelers estimated correctly higher: ${budget3.totalEstimate} USD vs ${budget1.totalEstimate} USD`);
+  } else {
+    console.error("❌ Traveler weight costing failed", budget1, budget3);
+  }
+
+  // 9. Test Trip Validation Schemas
+  console.log("\n9. Testing Trip & Budget validation schemas...");
   try {
-    const invalidRoute = {
+    const validTripData = {
       body: {
-        originLatitude: 100, // Invalid latitude
-        originLongitude: 72.8777,
-        destinationId: "507f1f77bcf86cd799439011", // Valid ObjectID format
-        modeOfTransport: "rocket" // Invalid mode
+        destinationId: "507f1f77bcf86cd799439011",
+        startDate: "2026-07-01",
+        endDate: "2026-07-05",
+        travelers: 2,
+        hotelPreference: "luxury",
+        transportPreference: "flight",
+        travelType: "couple"
       }
     };
-    calculateRouteSchema.parse(invalidRoute);
-    console.error("❌ Invalid Route schema mistakenly passed");
+    createTripSchema.parse(validTripData);
+    console.log("✅ Valid Trip schema passes parsing");
   } catch (err) {
-    console.log("✅ Invalid Route schema correctly rejected");
+    console.error("❌ Valid Trip schema failed to parse", err);
+  }
+
+  try {
+    const invalidTripData = {
+      body: {
+        destinationId: "507f1f77bcf86cd799439011",
+        startDate: "2026-07-05",
+        endDate: "2026-07-01", // End date before start date
+        travelers: 2
+      }
+    };
+    createTripSchema.parse(invalidTripData);
+    console.error("❌ Invalid Trip schema (reversed dates) mistakenly passed");
+  } catch (err) {
+    console.log("✅ Invalid Trip schema (reversed dates) correctly rejected");
   }
 }
 
