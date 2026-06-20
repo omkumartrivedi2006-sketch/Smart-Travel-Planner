@@ -62,4 +62,3 @@ If you prefer to deploy the static frontend separately from the backend server:
 - **Build Command**: `npm run build`
 - **Output Directory**: `dist` (if Vercel/Netlify builds just the front end, update build settings to point to Vite outputs)
 - **Vite Proxy**: In production, the client needs to talk to the backend domain directly. Set `VITE_API_URL` environment variable to point to your live Express backend domain (e.g. `https://api.smarttravelplanner.com`), and ensure client requests utilize this base URL when making requests.
-

@@ -88,4 +88,3 @@ Here is how each page hooks into the backend APIs:
 - **Send Message**: Calls `POST /api/chat/message` with user message and session identifier.
 - **History**: Calls `GET /api/chat/history?session=...`.
 - **Clear History**: Calls `DELETE /api/chat/history?session=...`.
-

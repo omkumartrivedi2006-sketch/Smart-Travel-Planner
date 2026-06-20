@@ -68,4 +68,3 @@ This script will:
 3. Seed 50+ beautiful destinations from India and around the globe.
 4. Add user and admin accounts for testing.
 5. Create default weather records to support local fallback APIs.
-
