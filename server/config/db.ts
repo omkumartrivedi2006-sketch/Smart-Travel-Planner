@@ -6,43 +6,44 @@ let mongod: MongoMemoryServer | null = null;
 
 export async function connectDB(): Promise<void> {
   let mongodbUri = process.env.MONGODB_URI;
+  const forceInMemory = process.env.USE_IN_MEMORY_DB === "true";
 
-  // If MONGODB_URI is not set, or points to localhost/127.0.0.1, spin up an in-memory MongoDB server
-  if (!mongodbUri || mongodbUri.includes("localhost") || mongodbUri.includes("127.0.0.1")) {
+  mongoose.connection.on("connecting", () => {
+    logger.info("Connecting to MongoDB...");
+  });
+
+  mongoose.connection.on("connected", () => {
+    logger.info("Successfully connected to MongoDB.");
+  });
+
+  mongoose.connection.on("error", (err) => {
+    logger.error("MongoDB connection error:", err);
+  });
+
+  mongoose.connection.on("disconnected", () => {
+    logger.warn("MongoDB connection disconnected.");
+  });
+
+  if (mongodbUri && !forceInMemory) {
     try {
-      logger.info("Initializing in-memory MongoDB server for zero-config development...");
-      mongod = await MongoMemoryServer.create();
-      mongodbUri = mongod.getUri();
-      logger.info(`In-memory MongoDB started at: ${mongodbUri}`);
-    } catch (err) {
-      logger.error("Failed to start in-memory MongoDB server:", err);
-      if (!mongodbUri) {
-        logger.error("No MONGODB_URI provided and memory server failed to start.");
-        process.exit(1);
-      }
+      logger.info(`Attempting to connect to configured MongoDB URI...`);
+      // Use 5s timeout to fail fast if the local/remote MongoDB is offline
+      await mongoose.connect(mongodbUri, { serverSelectionTimeoutMS: 5000 });
+      return;
+    } catch (err: any) {
+      logger.warn(`Failed to connect to MONGODB_URI. Error: ${err.message}`);
+      logger.warn("Falling back to in-memory MongoDB server so the application can run.");
     }
   }
 
   try {
-    mongoose.connection.on("connecting", () => {
-      logger.info("Connecting to MongoDB...");
-    });
-
-    mongoose.connection.on("connected", () => {
-      logger.info("Successfully connected to MongoDB.");
-    });
-
-    mongoose.connection.on("error", (err) => {
-      logger.error("MongoDB connection error:", err);
-    });
-
-    mongoose.connection.on("disconnected", () => {
-      logger.warn("MongoDB connection disconnected.");
-    });
-
-    await mongoose.connect(mongodbUri);
-  } catch (error) {
-    logger.error("Failed to connect to MongoDB:", error);
+    logger.info("Initializing in-memory MongoDB server for zero-config development...");
+    mongod = await MongoMemoryServer.create();
+    const uri = mongod.getUri();
+    logger.info(`In-memory MongoDB started at: ${uri}`);
+    await mongoose.connect(uri);
+  } catch (err) {
+    logger.error("Failed to start/connect to in-memory MongoDB server:", err);
     process.exit(1);
   }
 }
