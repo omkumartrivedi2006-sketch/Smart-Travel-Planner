@@ -5,6 +5,10 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 import { connectDB } from "./config/db";
 import { logger } from "./utils/logger";
 import authRoutes from "./routes/authRoutes";
