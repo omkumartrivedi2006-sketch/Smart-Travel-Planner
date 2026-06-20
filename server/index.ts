@@ -8,6 +8,9 @@ import rateLimit from "express-rate-limit";
 import { connectDB } from "./config/db";
 import { logger } from "./utils/logger";
 import authRoutes from "./routes/authRoutes";
+import destinationRoutes from "./routes/destinationRoutes";
+import weatherRoutes from "./routes/weatherRoutes";
+import routeRoutes from "./routes/routeRoutes";
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,6 +44,9 @@ async function startServer() {
 
   // 4. API Routes
   app.use("/api/auth", authRoutes);
+  app.use("/api/destinations", destinationRoutes);
+  app.use("/api/weather", weatherRoutes);
+  app.use("/api/routes", routeRoutes);
 
   // 5. API 404 Handler (ensures unknown /api requests don't fall back to client HTML)
   app.all("/api/*", notFoundHandler);
