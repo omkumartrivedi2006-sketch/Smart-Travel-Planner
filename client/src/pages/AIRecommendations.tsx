@@ -279,6 +279,9 @@ export default function AIRecommendations() {
                             src={rec.image}
                             alt={rec.name}
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-teal-600 bg-teal-50/50">

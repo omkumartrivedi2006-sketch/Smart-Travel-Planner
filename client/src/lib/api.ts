@@ -100,7 +100,11 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
         if (refreshRes.ok) {
           const refreshData = await refreshRes.json();
           const newAccessToken = refreshData.data.accessToken;
+          const newRefreshToken = refreshData.data.refreshToken;
           localStorage.setItem("accessToken", newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem("refreshToken", newRefreshToken);
+          }
           isRefreshing = false;
           onRefreshed(newAccessToken);
         } else {

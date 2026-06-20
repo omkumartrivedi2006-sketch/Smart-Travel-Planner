@@ -224,6 +224,9 @@ export default function DestinationDetails() {
                 src={destination.image}
                 alt={destination.name}
                 className="w-full h-96 object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
+                }}
               />
             </Card>
 

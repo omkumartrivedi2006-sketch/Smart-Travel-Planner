@@ -998,7 +998,14 @@ export default function ChatAssistant() {
                               className="border border-slate-200 bg-white shadow-md rounded-xl overflow-hidden hover:shadow-lg transition-all cursor-pointer hover:-translate-y-0.5"
                             >
                               <div className="h-32 overflow-hidden relative">
-                                <img src={dest.image} alt={dest.name} className="w-full h-full object-cover" />
+                                <img
+                                  src={dest.image}
+                                  alt={dest.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
+                                  }}
+                                />
                                 <div className="absolute top-2 right-2 bg-white/95 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-900 border border-slate-200 shadow-sm">
                                   {dest.category}
                                 </div>
