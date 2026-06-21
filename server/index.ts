@@ -60,6 +60,11 @@ async function startServer() {
       // Allow requests with no origin (like mobile apps, curl, postman)
       if (!origin) return callback(null, true);
 
+      // In development mode, allow any origin to make local network and tunnel testing easy
+      if (process.env.NODE_ENV !== "production") {
+        return callback(null, true);
+      }
+
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
