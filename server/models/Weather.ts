@@ -4,12 +4,15 @@ export interface IForecastItem {
   date: string; // YYYY-MM-DD
   temperature: number;
   condition: string;
+  icon?: string; // weather icon code or URL
 }
 
 export interface IWeather extends Document {
   destinationName: string; // lowercased lookup name
+  country?: string;
   temperature: number; // in Celsius
   condition: string;
+  icon?: string;
   humidity: number; // percentage
   windSpeed: number; // in km/h
   forecast: IForecastItem[];
@@ -20,6 +23,7 @@ const ForecastItemSchema = new Schema({
   date: { type: String, required: true },
   temperature: { type: Number, required: true },
   condition: { type: String, required: true },
+  icon: { type: String },
 });
 
 const WeatherSchema: Schema<IWeather> = new Schema(
@@ -32,6 +36,10 @@ const WeatherSchema: Schema<IWeather> = new Schema(
       trim: true,
       index: true,
     },
+    country: {
+      type: String,
+      default: "",
+    },
     temperature: {
       type: Number,
       required: true,
@@ -39,6 +47,10 @@ const WeatherSchema: Schema<IWeather> = new Schema(
     condition: {
       type: String,
       required: true,
+    },
+    icon: {
+      type: String,
+      default: "",
     },
     humidity: {
       type: Number,

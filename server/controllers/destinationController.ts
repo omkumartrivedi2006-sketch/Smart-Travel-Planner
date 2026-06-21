@@ -19,7 +19,8 @@ export async function getDestinations(
 
     // 1. Search (matches name, country, or category)
     if (search) {
-      const searchRegex = new RegExp(String(search), "i");
+      const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedSearch, "i");
       queryFilter.$or = [
         { name: searchRegex },
         { country: searchRegex },
@@ -29,10 +30,12 @@ export async function getDestinations(
 
     // 2. Filters
     if (country) {
-      queryFilter.country = new RegExp(`^${String(country)}$`, "i");
+      const escapedCountry = String(country).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      queryFilter.country = new RegExp(`^${escapedCountry}$`, "i");
     }
     if (category) {
-      queryFilter.category = new RegExp(`^${String(category)}$`, "i");
+      const escapedCategory = String(category).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      queryFilter.category = new RegExp(`^${escapedCategory}$`, "i");
     }
     if (maxCost) {
       const costLimit = Number(maxCost);

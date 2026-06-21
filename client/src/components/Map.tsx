@@ -1,161 +1,169 @@
-/**
- * GOOGLE MAPS FRONTEND INTEGRATION - ESSENTIAL GUIDE
- *
- * USAGE FROM PARENT COMPONENT:
- * ======
- *
- * const mapRef = useRef<google.maps.Map | null>(null);
- *
- * <MapView
- *   initialCenter={{ lat: 40.7128, lng: -74.0060 }}
- *   initialZoom={15}
- *   onMapReady={(map) => {
- *     mapRef.current = map; // Store to control map from parent anytime, google map itself is in charge of the re-rendering, not react state.
- * </MapView>
- *
- * ======
- * Available Libraries and Core Features:
- * -------------------------------
- * 📍 MARKER (from `marker` library)
- * - Attaches to map using { map, position }
- * new google.maps.marker.AdvancedMarkerElement({
- *   map,
- *   position: { lat: 37.7749, lng: -122.4194 },
- *   title: "San Francisco",
- * });
- *
- * -------------------------------
- * 🏢 PLACES (from `places` library)
- * - Does not attach directly to map; use data with your map manually.
- * const place = new google.maps.places.Place({ id: PLACE_ID });
- * await place.fetchFields({ fields: ["displayName", "location"] });
- * map.setCenter(place.location);
- * new google.maps.marker.AdvancedMarkerElement({ map, position: place.location });
- *
- * -------------------------------
- * 🧭 GEOCODER (from `geocoding` library)
- * - Standalone service; manually apply results to map.
- * const geocoder = new google.maps.Geocoder();
- * geocoder.geocode({ address: "New York" }, (results, status) => {
- *   if (status === "OK" && results[0]) {
- *     map.setCenter(results[0].geometry.location);
- *     new google.maps.marker.AdvancedMarkerElement({
- *       map,
- *       position: results[0].geometry.location,
- *     });
- *   }
- * });
- *
- * -------------------------------
- * 📐 GEOMETRY (from `geometry` library)
- * - Pure utility functions; not attached to map.
- * const dist = google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
- *
- * -------------------------------
- * 🛣️ ROUTES (from `routes` library)
- * - Combines DirectionsService (standalone) + DirectionsRenderer (map-attached)
- * const directionsService = new google.maps.DirectionsService();
- * const directionsRenderer = new google.maps.DirectionsRenderer({ map });
- * directionsService.route(
- *   { origin, destination, travelMode: "DRIVING" },
- *   (res, status) => status === "OK" && directionsRenderer.setDirections(res)
- * );
- *
- * -------------------------------
- * 🌦️ MAP LAYERS (attach directly to map)
- * - new google.maps.TrafficLayer().setMap(map);
- * - new google.maps.TransitLayer().setMap(map);
- * - new google.maps.BicyclingLayer().setMap(map);
- *
- * -------------------------------
- * ✅ SUMMARY
- * - “map-attached” → AdvancedMarkerElement, DirectionsRenderer, Layers.
- * - “standalone” → Geocoder, DirectionsService, DistanceMatrixService, ElevationService.
- * - “data-only” → Place, Geometry utilities.
- */
-
-/// <reference types="@types/google.maps" />
-
 import { useEffect, useRef } from "react";
-import { usePersistFn } from "@/hooks/usePersistFn";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { cn } from "@/lib/utils";
 
-declare global {
-  interface Window {
-    google?: typeof google;
-  }
-}
+// Fix Leaflet's default marker icon paths in bundle environments
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
-const FORGE_API_KEY = import.meta.env.VITE_FRONTEND_FORGE_API_KEY;
-const FORGE_BASE_URL =
-  import.meta.env.VITE_FRONTEND_FORGE_API_URL ||
-  "https://forge.butterfly-effect.dev";
-const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
-
-const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-function loadMapScript() {
-  return new Promise(resolve => {
-    const script = document.createElement("script");
-    if (GOOGLE_MAPS_KEY && GOOGLE_MAPS_KEY.trim() !== "" && GOOGLE_MAPS_KEY.trim() !== "YourGoogleMapsAPIKeyHere") {
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY.trim()}&v=weekly&libraries=marker,places,geocoding,geometry`;
-    } else {
-      script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${FORGE_API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
-    }
-    script.async = true;
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      resolve(null);
-      script.remove(); // Clean up immediately
-    };
-    script.onerror = () => {
-      console.error("Failed to load Google Maps script");
-    };
-    document.head.appendChild(script);
-  });
+export interface MapMarker {
+  lat: number;
+  lng: number;
+  title: string;
+  category?: string;
+  address?: string;
+  rating?: number | null;
 }
 
 interface MapViewProps {
   className?: string;
-  initialCenter?: google.maps.LatLngLiteral;
+  center?: { lat: number; lng: number };
+  zoom?: number;
+  markers?: MapMarker[];
+  routeCoordinates?: [number, number][]; // Array of [lat, lng]
+  initialCenter?: { lat: number; lng: number };
   initialZoom?: number;
-  onMapReady?: (map: google.maps.Map) => void;
+  onMapReady?: (map: L.Map) => void;
 }
 
 export function MapView({
   className,
-  initialCenter = { lat: 37.7749, lng: -122.4194 },
+  center,
+  zoom,
+  markers = [],
+  routeCoordinates = [],
+  initialCenter = { lat: 15.2993, lng: 74.1240 }, // Default Goa coordinates
   initialZoom = 12,
   onMapReady,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<google.maps.Map | null>(null);
+  const mapInstance = useRef<L.Map | null>(null);
+  const markersLayer = useRef<L.LayerGroup | null>(null);
+  const routeLayer = useRef<L.Polyline | null>(null);
 
-  const init = usePersistFn(async () => {
-    await loadMapScript();
-    if (!mapContainer.current) {
-      console.error("Map container not found");
-      return;
-    }
-    map.current = new window.google.maps.Map(mapContainer.current, {
-      zoom: initialZoom,
-      center: initialCenter,
-      mapTypeControl: true,
-      fullscreenControl: true,
-      zoomControl: true,
-      streetViewControl: true,
-      mapId: "DEMO_MAP_ID",
-    });
-    if (onMapReady) {
-      onMapReady(map.current);
-    }
-  });
-
+  // Initialize Map
   useEffect(() => {
-    init();
-  }, [init]);
+    if (!mapContainer.current || mapInstance.current) return;
+
+    const activeCenter = center || initialCenter;
+    const activeZoom = zoom || initialZoom;
+
+    // Create map instance
+    const map = L.map(mapContainer.current, {
+      zoomControl: true,
+      scrollWheelZoom: true,
+    }).setView([activeCenter.lat, activeCenter.lng], activeZoom);
+
+    mapInstance.current = map;
+
+    // Load OpenStreetMap tiles
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    // Initialize layer group for markers
+    markersLayer.current = L.layerGroup().addTo(map);
+
+    if (onMapReady) {
+      onMapReady(map);
+    }
+
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, []);
+
+  // Update center and zoom reactively
+  useEffect(() => {
+    if (mapInstance.current && center) {
+      const activeZoom = zoom || mapInstance.current.getZoom();
+      mapInstance.current.setView([center.lat, center.lng], activeZoom);
+    }
+  }, [center, zoom]);
+
+  // Update markers reactively
+  useEffect(() => {
+    if (!mapInstance.current || !markersLayer.current) return;
+
+    // Clear old markers
+    markersLayer.current.clearLayers();
+
+    // Draw new markers
+    markers.forEach((m) => {
+      let customIcon;
+
+      if (m.category) {
+        const cat = m.category.toLowerCase();
+        let color = "red"; // default for attractions/landmarks
+
+        if (cat === "hotel" || cat === "accommodation") {
+          color = "blue";
+        } else if (cat === "restaurant" || cat === "cafe" || cat === "catering") {
+          color = "green";
+        } else if (cat === "start" || cat === "origin" || cat === "source") {
+          color = "orange";
+        }
+
+        customIcon = L.icon({
+          iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+          shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41],
+        });
+      }
+
+      const marker = L.marker([m.lat, m.lng], customIcon ? { icon: customIcon } : undefined)
+        .bindPopup(`
+          <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 150px; font-size: 13px;">
+            <strong style="color: #0f766e; font-size: 14px; display: block; margin-bottom: 4px;">${m.title}</strong>
+            ${m.category ? `<span style="background-color: #f0fdfa; color: #0d9488; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 10px; display: inline-block; margin-bottom: 4px;">${m.category}</span>` : ""}
+            ${m.rating ? `<span style="color: #fb923c; font-weight: bold; margin-left: 6px;">⭐ ${m.rating}</span>` : ""}
+            ${m.address ? `<p style="margin: 4px 0 0 0; color: #64748b; font-size: 11px; line-height: 1.3;">${m.address}</p>` : ""}
+          </div>
+        `);
+
+      markersLayer.current?.addLayer(marker);
+    });
+  }, [markers]);
+
+  // Update routing polyline reactively
+  useEffect(() => {
+    if (!mapInstance.current) return;
+
+    // Clear old polyline
+    if (routeLayer.current) {
+      routeLayer.current.remove();
+      routeLayer.current = null;
+    }
+
+    if (routeCoordinates && routeCoordinates.length > 0) {
+      // Draw premium polyline (teal color, rounded joins)
+      routeLayer.current = L.polyline(routeCoordinates, {
+        color: "#0d9488",
+        weight: 6,
+        opacity: 0.85,
+        lineJoin: "round",
+      }).addTo(mapInstance.current);
+
+      // Pan & Zoom to fit the entire route
+      mapInstance.current.fitBounds(routeLayer.current.getBounds(), {
+        padding: [40, 40],
+      });
+    }
+  }, [routeCoordinates]);
 
   return (
-    <div ref={mapContainer} className={cn("w-full h-[500px]", className)} />
+    <div ref={mapContainer} className={cn("w-full h-full min-h-[300px]", className)} />
   );
 }

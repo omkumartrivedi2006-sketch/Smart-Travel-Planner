@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation, useParams } from "wouter";
-import { Star, MapPin, Heart, Compass, Sun, Moon } from "lucide-react";
+import { Star, MapPin, Heart, Compass, Sun, Moon, Utensils, Hotel, Map } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { MapView } from "@/components/Map";
 
 interface Destination {
   id: string;
@@ -26,6 +27,8 @@ interface Destination {
   currency: string;
   language: string;
   visa: string;
+  latitude: number;
+  longitude: number;
 }
 
 const getCurrency = (country: string) => {
@@ -84,6 +87,8 @@ export default function DestinationDetails() {
   const { theme, toggleTheme } = useTheme();
   
   const [destination, setDestination] = useState<Destination | null>(null);
+  const [places, setPlaces] = useState<any[]>([]);
+  const [activeCategory, setActiveCategory] = useState("Attraction");
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -109,7 +114,7 @@ export default function DestinationDetails() {
             weatherList = weatherRes.data.weather.forecast.map((f: any) => ({
               day: getDayName(f.date),
               temp: `${Math.round(f.temperature)}°`,
-              icon: getWeatherIcon(f.condition),
+              icon: f.icon || getWeatherIcon(f.condition),
             }));
           }
         } catch (weatherErr) {
@@ -125,6 +130,16 @@ export default function DestinationDetails() {
               icon: d.category === "Mountain" ? "❄️" : "☀️",
             };
           });
+        }
+
+        // 3. Fetch Real-time Places/Attractions from Geoapify
+        try {
+          const placesRes = await apiFetch(`/api/places/${encodeURIComponent(d.name)}`);
+          if (placesRes && placesRes.data && placesRes.data.places) {
+            setPlaces(placesRes.data.places);
+          }
+        } catch (placeErr) {
+          console.error("Failed to load local places", placeErr);
         }
 
         // Map to UI model
@@ -147,6 +162,8 @@ export default function DestinationDetails() {
           currency: getCurrency(d.country),
           language: getLanguage(d.country),
           visa: getVisa(d.country),
+          latitude: d.latitude,
+          longitude: d.longitude,
         };
 
         setDestination(mappedDest);
@@ -291,9 +308,116 @@ export default function DestinationDetails() {
               </p>
             </div>
 
-            {/* Attractions */}
+            {/* Local Sights Map */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-foreground mb-4">Top Attractions</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Location Map</h3>
+              <Card className="border border-border bg-card text-card-foreground shadow-lg overflow-hidden h-96 relative">
+                <MapView
+                  center={{ lat: destination.latitude, lng: destination.longitude }}
+                  zoom={13}
+                  markers={[
+                    {
+                      lat: destination.latitude,
+                      lng: destination.longitude,
+                      title: destination.name,
+                      category: "Destination",
+                    },
+                    ...places.map((p) => ({
+                      lat: p.coordinates.lat,
+                      lng: p.coordinates.lng,
+                      title: p.name,
+                      category: p.category,
+                      address: p.address,
+                      rating: p.rating,
+                    })),
+                  ]}
+                  className="w-full h-full"
+                />
+              </Card>
+            </div>
+
+            {/* Real-time Local Places & Attractions */}
+            <div className="mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h3 className="text-2xl font-bold text-foreground">Explore Local Places</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: "Attraction", label: "Attractions", icon: Compass },
+                    { id: "Hotel", label: "Hotels", icon: Hotel },
+                    { id: "Food", label: "Food & Cafes", icon: Utensils },
+                    { id: "Landmark", label: "Sights", icon: Map },
+                  ].map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeCategory === tab.id;
+                    return (
+                      <Button
+                        key={tab.id}
+                        variant={isActive ? "default" : "outline"}
+                        className={isActive ? "bg-teal-600 hover:bg-teal-700 text-white" : "border-border text-foreground hover:bg-muted"}
+                        onClick={() => setActiveCategory(tab.id)}
+                      >
+                        <Icon className="w-4 h-4 mr-2" />
+                        {tab.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {places.length === 0 ? (
+                <Card className="border border-border bg-card text-card-foreground shadow-md p-8 text-center text-muted-foreground">
+                  Searching for local places in {destination.name}... (Ensure Geoapify API key is set)
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {places
+                    .filter((p) => {
+                      if (activeCategory === "Food") {
+                        return p.category === "Restaurant" || p.category === "Cafe";
+                      }
+                      return p.category === activeCategory;
+                    })
+                    .slice(0, 10)
+                    .map((place) => (
+                      <Card key={place.name} className="border border-border bg-card text-card-foreground shadow-md p-5 flex flex-col justify-between hover:shadow-lg transition-shadow">
+                        <div>
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <h4 className="font-bold text-foreground text-base leading-tight">{place.name}</h4>
+                            {place.rating && (
+                              <span className="text-amber-500 font-bold flex items-center gap-1 text-xs shrink-0 bg-amber-500/10 px-2 py-0.5 rounded">
+                                ⭐ {place.rating}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground text-xs leading-relaxed mb-4">{place.address}</p>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold border-t border-border pt-3">
+                          <span className="bg-teal-500/10 text-teal-600 px-2.5 py-0.5 rounded uppercase">
+                            {place.category}
+                          </span>
+                          <span>
+                            📍 {place.coordinates.lat.toFixed(4)}, {place.coordinates.lng.toFixed(4)}
+                          </span>
+                        </div>
+                      </Card>
+                    ))}
+                  {places.filter((p) => {
+                    if (activeCategory === "Food") {
+                      return p.category === "Restaurant" || p.category === "Cafe";
+                    }
+                    return p.category === activeCategory;
+                  }).length === 0 && (
+                    <Card className="col-span-2 border border-border bg-card text-card-foreground shadow-md p-8 text-center text-muted-foreground">
+                      No local {activeCategory.toLowerCase()}s found in this radius.
+                    </Card>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Predefined Top Attractions (for visual parity) */}
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold text-foreground mb-4">Activities & Experiences</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {destination.attractions.map((attraction) => (
                   <Card key={attraction} className="border border-border bg-card text-card-foreground shadow-md p-4 flex items-center gap-3">
@@ -311,7 +435,13 @@ export default function DestinationDetails() {
                 {destination.weather.map((day) => (
                   <Card key={day.day} className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
                     <p className="text-sm font-semibold text-foreground mb-2">{day.day}</p>
-                    <p className="text-2xl mb-2">{day.icon}</p>
+                    <div className="h-8 flex items-center justify-center mb-2">
+                      {day.icon.startsWith("http") ? (
+                        <img src={day.icon} alt={day.day} className="w-8 h-8 object-contain" />
+                      ) : (
+                        <span className="text-2xl">{day.icon}</span>
+                      )}
+                    </div>
                     <p className="font-bold text-foreground">{day.temp}</p>
                   </Card>
                 ))}

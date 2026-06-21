@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { Map, Navigation, Clock, Zap, MapPin, Sun, Moon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { MapView } from "@/components/Map";
+import { MapView, MapMarker } from "@/components/Map";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -19,7 +19,7 @@ interface RouteInfo {
 
 export default function RoutePlanner() {
   const [, navigate] = useLocation();
-  const mapRef = useRef<google.maps.Map | null>(null);
+  const mapRef = useRef<any | null>(null);
   const { theme, toggleTheme } = useTheme();
 
   // Input states
@@ -35,7 +35,9 @@ export default function RoutePlanner() {
       { step: 1, direction: "Enter locations and click Get Directions to begin.", distance: "0 km" }
     ]
   });
-  const [center, setCenter] = useState<google.maps.LatLngLiteral>({ lat: 15.2993, lng: 74.1240 }); // Default Goa
+  const [center, setCenter] = useState<{ lat: number; lng: number }>({ lat: 15.2993, lng: 74.1240 }); // Default Goa
+  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
+  const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
   const [destinationsList, setDestinationsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -112,7 +114,7 @@ export default function RoutePlanner() {
       });
 
       if (routeRes && routeRes.data) {
-        const { distanceKm, durationHours, estimatedCost, suggestedItinerary, warning } = routeRes.data;
+        const { distanceKm, durationHours, estimatedCost, suggestedItinerary, routeCoordinates, warning } = routeRes.data;
 
         // Format duration
         let durationText = "";
@@ -125,10 +127,10 @@ export default function RoutePlanner() {
         }
 
         const calculatedRoute: RouteInfo = {
-          name: `${transitMode} Route (via database coordinates)`,
+          name: `${transitMode} Route (via live routing API)`,
           time: durationText,
           distance: `${distanceKm.toFixed(1)} km`,
-          toll: `$${estimatedCost.toFixed(2)}`,
+          toll: `₹${Math.round(estimatedCost * 80).toLocaleString()}`, // Convert USD to INR
           directions: suggestedItinerary.map((stepText: string, idx: number) => ({
             step: idx + 1,
             direction: stepText,
@@ -141,9 +143,24 @@ export default function RoutePlanner() {
         // Update map zoom and center on destination
         const newCenter = { lat: matchedEnd.latitude, lng: matchedEnd.longitude };
         setCenter(newCenter);
-        if (mapRef.current) {
-          mapRef.current.setCenter(newCenter);
-          mapRef.current.setZoom(11);
+
+        // Update markers and route polylines
+        const startMarker: MapMarker = {
+          lat: originLat,
+          lng: originLng,
+          title: startLocation,
+          category: "Start",
+        };
+        const endMarker: MapMarker = {
+          lat: matchedEnd.latitude,
+          lng: matchedEnd.longitude,
+          title: matchedEnd.name,
+          category: "Destination",
+        };
+        
+        setMapMarkers([startMarker, endMarker]);
+        if (routeCoordinates) {
+          setRouteCoords(routeCoordinates);
         }
 
         if (warning) {
@@ -273,10 +290,12 @@ export default function RoutePlanner() {
           {/* Map and Details */}
           <div className="lg:col-span-3">
             {/* Real Interactive Map View */}
-            <Card className="border-0 shadow-lg overflow-hidden mb-8 h-96 relative bg-muted">
+            <Card className="border-0 shadow-lg overflow-hidden mb-8 h-96 relative bg-muted text-card-foreground">
               <MapView
-                initialCenter={center}
-                initialZoom={12}
+                center={center}
+                zoom={11}
+                markers={mapMarkers}
+                routeCoordinates={routeCoords}
                 onMapReady={(map) => {
                   mapRef.current = map;
                 }}

@@ -18,6 +18,8 @@ import routeRoutes from "./routes/routeRoutes";
 import tripRoutes from "./routes/tripRoutes";
 import budgetRoutes from "./routes/budgetRoutes";
 import chatRoutes from "./routes/chatRoutes";
+import placesRoutes from "./routes/placesRoutes";
+import itineraryRoutes from "./routes/itineraryRoutes";
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware";
 import fs from "fs";
 import swaggerUi from "swagger-ui-express";
@@ -94,6 +96,8 @@ async function startServer() {
   app.use("/api/trips", tripRoutes);
   app.use("/api/budget", budgetRoutes);
   app.use("/api/chat", chatRoutes);
+  app.use("/api/places", placesRoutes);
+  app.use("/api/itinerary", itineraryRoutes);
 
   // Swagger Documentation Route
   try {

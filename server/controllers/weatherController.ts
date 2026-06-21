@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Destination } from "../models/Destination";
 import { Weather, IForecastItem } from "../models/Weather";
-import { NotFoundError } from "../utils/errors";
+import { NotFoundError, BadRequestError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import axios from "axios";
 
@@ -82,49 +82,67 @@ function generateMockWeather(destinationName: string, category: string, country:
  * Fetch weather from OpenWeatherMap API
  */
 async function fetchOpenWeather(destinationName: string, apiKey: string) {
-  const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(destinationName)}&appid=${apiKey}&units=metric`;
-  const response = await axios.get(url);
-  const data = response.data;
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(destinationName)}&appid=${apiKey}&units=metric`;
+    const response = await axios.get(url);
+    const data = response.data;
 
-  const list = data.list || [];
-  const current = list[0];
-  if (!current) {
-    throw new Error("No weather forecasts returned from OpenWeatherMap");
-  }
-
-  const temperature = Math.round(current.main.temp);
-  const condition = current.weather[0]?.main || "Clear";
-  const humidity = current.main.humidity;
-  const windSpeed = Math.round(current.wind.speed * 3.6); // convert m/s to km/h
-
-  // Generate 5-day forecast by extracting 1 record per day (roughly every 24h)
-  const forecast: IForecastItem[] = [];
-  const addedDays = new Set<string>();
-  const todayStr = new Date().toISOString().split("T")[0];
-
-  for (const item of list) {
-    const dateTimeStr = item.dt_txt || "";
-    const dateStr = dateTimeStr.split(" ")[0] || new Date(item.dt * 1000).toISOString().split("T")[0];
-
-    if (dateStr !== todayStr && !addedDays.has(dateStr) && forecast.length < 5) {
-      addedDays.add(dateStr);
-      forecast.push({
-        date: dateStr,
-        temperature: Math.round(item.main.temp),
-        condition: item.weather[0]?.main || "Clear",
-      });
+    const list = data.list || [];
+    const current = list[0];
+    if (!current) {
+      throw new Error("No weather forecasts returned from OpenWeatherMap");
     }
-  }
 
-  return {
-    destinationName: destinationName.toLowerCase(),
-    temperature,
-    condition,
-    humidity,
-    windSpeed,
-    forecast,
-    lastUpdated: new Date(),
-  };
+    const temperature = Math.round(current.main.temp);
+    const condition = current.weather[0]?.main || "Clear";
+    const icon = current.weather[0]?.icon ? `https://openweathermap.org/img/wn/${current.weather[0].icon}@2x.png` : "";
+    const humidity = current.main.humidity;
+    const windSpeed = Math.round(current.wind.speed * 3.6); // convert m/s to km/h
+    const country = data.city?.country || "";
+
+    // Generate 5-day forecast by extracting 1 record per day (roughly every 24h)
+    const forecast: IForecastItem[] = [];
+    const addedDays = new Set<string>();
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    for (const item of list) {
+      const dateTimeStr = item.dt_txt || "";
+      const dateStr = dateTimeStr.split(" ")[0] || new Date(item.dt * 1000).toISOString().split("T")[0];
+
+      if (dateStr !== todayStr && !addedDays.has(dateStr) && forecast.length < 5) {
+        addedDays.add(dateStr);
+        forecast.push({
+          date: dateStr,
+          temperature: Math.round(item.main.temp),
+          condition: item.weather[0]?.main || "Clear",
+          icon: item.weather[0]?.icon ? `https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png` : "",
+        });
+      }
+    }
+
+    return {
+      destinationName: destinationName.toLowerCase(),
+      country,
+      temperature,
+      condition,
+      icon,
+      humidity,
+      windSpeed,
+      forecast,
+      lastUpdated: new Date(),
+    };
+  } catch (err: any) {
+    if (axios.isAxiosError(err)) {
+      if (err.response?.status === 404) {
+        throw new BadRequestError(`Destination '${destinationName}' was not found in the weather service database.`);
+      }
+      if (err.response?.status === 401) {
+        throw new BadRequestError("The OpenWeather API key configured on the server is invalid or has expired.");
+      }
+      throw new BadRequestError(`Weather service error: ${err.response?.data?.message || err.message}`);
+    }
+    throw err;
+  }
 }
 
 /**
@@ -140,18 +158,15 @@ export async function getDestinationWeather(
     const { destination } = req.params;
 
     // 1. Find destination to verify it exists and get geographic context
+    const escapedDestination = destination.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const foundDestination = await Destination.findOne({
       $or: [
-        { name: new RegExp(`^${destination}$`, "i") },
-        { country: new RegExp(`^${destination}$`, "i") }
+        { name: new RegExp(`^${escapedDestination}$`, "i") },
+        { country: new RegExp(`^${escapedDestination}$`, "i") }
       ]
     });
 
-    if (!foundDestination) {
-      throw new NotFoundError(`Destination '${destination}' not found`);
-    }
-
-    const lookupName = foundDestination.name.toLowerCase();
+    const lookupName = foundDestination ? foundDestination.name.toLowerCase() : destination.toLowerCase();
 
     // 2. Lookup existing weather record
     let weatherRecord = await Weather.findOne({ destinationName: lookupName });
@@ -163,35 +178,23 @@ export async function getDestinationWeather(
       Date.now() - new Date(weatherRecord.lastUpdated).getTime() > cacheExpiryMs;
 
     if (needsRefresh) {
-      logger.info(`Generating/Refreshing weather details for: ${foundDestination.name}`);
+      logger.info(`Generating/Refreshing weather details for: ${lookupName}`);
       
-      let freshWeatherData;
       const apiKey = process.env.OPENWEATHER_API_KEY;
 
-      if (apiKey && apiKey.trim() !== "" && apiKey.trim() !== "YourOpenWeatherAPIKeyHere") {
-        try {
-          logger.info(`Fetching live weather from OpenWeatherMap for ${foundDestination.name}...`);
-          freshWeatherData = await fetchOpenWeather(foundDestination.name, apiKey.trim());
-        } catch (err: any) {
-          logger.warn(`OpenWeatherMap fetch failed for ${foundDestination.name}: ${err.message || err}. Falling back to mock generator.`);
-          freshWeatherData = generateMockWeather(
-            foundDestination.name,
-            foundDestination.category,
-            foundDestination.country
-          );
-        }
-      } else {
-        freshWeatherData = generateMockWeather(
-          foundDestination.name,
-          foundDestination.category,
-          foundDestination.country
-        );
+      if (!apiKey || apiKey.trim() === "" || apiKey.trim() === "YOUR_OPENWEATHER_KEY" || apiKey.trim() === "YourOpenWeatherAPIKeyHere") {
+        throw new BadRequestError("OpenWeather API key is not configured in environment variables");
       }
+
+      logger.info(`Fetching live weather from OpenWeatherMap for ${lookupName}...`);
+      const freshWeatherData = await fetchOpenWeather(lookupName, apiKey.trim());
 
       if (weatherRecord) {
         // Update existing cache
         weatherRecord.temperature = freshWeatherData.temperature;
         weatherRecord.condition = freshWeatherData.condition;
+        weatherRecord.icon = freshWeatherData.icon;
+        weatherRecord.country = freshWeatherData.country;
         weatherRecord.humidity = freshWeatherData.humidity;
         weatherRecord.windSpeed = freshWeatherData.windSpeed;
         weatherRecord.forecast = freshWeatherData.forecast;
@@ -206,8 +209,8 @@ export async function getDestinationWeather(
     res.status(200).json({
       status: "success",
       data: {
-        destination: foundDestination.name,
-        country: foundDestination.country,
+        destination: foundDestination ? foundDestination.name : (weatherRecord!.destinationName.charAt(0).toUpperCase() + weatherRecord!.destinationName.slice(1)),
+        country: foundDestination ? foundDestination.country : weatherRecord!.country || "",
         weather: weatherRecord,
       },
     });

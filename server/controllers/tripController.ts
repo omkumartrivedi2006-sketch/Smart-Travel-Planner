@@ -6,73 +6,84 @@ import { AuthenticatedRequest } from "../middleware/authMiddleware";
 import { performBudgetCalculation } from "./budgetController";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../utils/errors";
 import { logger } from "../utils/logger";
+import axios from "axios";
 
 /**
- * Generate a structured daily itinerary based on destination activities and places
+ * Generate a structured daily itinerary based on destination activities and places using Groq API
  */
-function generateItinerary(params: {
+async function generateItinerary(params: {
   destination: any;
   durationDays: number;
   hotelPreference: "budget" | "mid-range" | "luxury";
-}) {
+}): Promise<any[]> {
   const { destination, durationDays, hotelPreference } = params;
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey || apiKey.trim() === "" || apiKey.trim() === "YOUR_GROQ_KEY" || apiKey.trim() === "YourGroqAPIKeyHere") {
+    throw new BadRequestError("Groq API key is not configured in environment variables. Cannot generate AI itinerary.");
+  }
+
   const popularPlaces = destination.popularPlaces || [];
   const activities = destination.activities || [];
 
-  const itinerary = [];
+  try {
+    logger.info(`Fetching AI itinerary from Groq for destination: ${destination.name}`);
+    const systemPrompt = `You are an expert AI Travel Planner. Generate a highly realistic and structured day-by-day travel itinerary.
+You MUST output your response as a valid JSON object matching the JSON schema below. Do not output any conversational text or markdown blocks, return ONLY the raw JSON object.
 
-  for (let day = 1; day <= durationDays; day++) {
-    const dayActivities = [];
+JSON SCHEMA:
+{
+  "itinerary": [
+    {
+      "day": Number (Day index starting at 1),
+      "activities": [
+        {
+          "time": "String (e.g. '09:00 AM')",
+          "activity": "String (Short activity name)",
+          "description": "String (A 1-2 sentence description of what to do)",
+          "cost": Number (Estimated activity cost in INR. Use 0 if it is a free sightseeing walk or leisure)"
+        }
+      ]
+    }
+  ]
+}`;
 
-    // Round-robin selection of places and activities
-    const place1 = popularPlaces.length > 0
-      ? popularPlaces[(day - 1) % popularPlaces.length]
-      : "Local Landmark";
-      
-    const place2 = popularPlaces.length > 0
-      ? popularPlaces[day % popularPlaces.length]
-      : "Scenic Overlook";
+    const userPrompt = `Generate a ${durationDays}-day travel itinerary for visiting ${destination.name}, ${destination.country}. 
+Accommodation / Budget Category: ${hotelPreference}.
+Primary Travel Theme: ${destination.category}.
+Include actual local attractions and sights like: ${popularPlaces.join(", ")}.
+Include local activities like: ${activities.join(", ")}.`;
 
-    const activityName = activities.length > 0
-      ? activities[(day - 1) % activities.length]
-      : "Sightseeing Walk";
+    const payload = {
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.5
+    };
 
-    // Activity cost weights
-    let activityCost = 15;
-    if (hotelPreference === "budget") activityCost = 5;
-    if (hotelPreference === "luxury") activityCost = 45;
-
-    // 1. Morning Activity
-    dayActivities.push({
-      time: "09:00 AM",
-      activity: `Visit ${place1}`,
-      description: `Explore the prominent sights and historical architecture of ${place1}. Perfect for morning photography.`,
-      cost: 0, // Sightseeing at landmarks is usually free
+    const url = "https://api.groq.com/openai/v1/chat/completions";
+    const response = await axios.post(url, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey.trim()}`
+      }
     });
 
-    // 2. Afternoon Activity
-    dayActivities.push({
-      time: "02:00 PM",
-      activity: `${activityName} Session`,
-      description: `Participate in a guided ${activityName.toLowerCase()} experience at selected local hubs.`,
-      cost: Math.round(activityCost * (destination.averageCost / 50) * 100) / 100,
-    });
+    const responseContent = response.data?.choices?.[0]?.message?.content;
+    if (!responseContent) {
+      throw new Error("Empty response returned from Groq API");
+    }
 
-    // 3. Evening Leisure
-    dayActivities.push({
-      time: "06:00 PM",
-      activity: `Leisure walk near ${place2}`,
-      description: `Relax, dine, and enjoy the sunset views around the ${place2} waterfront or bazaar.`,
-      cost: 0,
-    });
-
-    itinerary.push({
-      day,
-      activities: dayActivities,
-    });
+    const parsedData = JSON.parse(responseContent);
+    return parsedData.itinerary || [];
+  } catch (error: any) {
+    logger.error("Failed to generate AI itinerary via Groq:", error.message || error);
+    // Return a basic fallback structured itinerary instead of crashing, but let it be a clean live API fallback
+    throw new Error(`AI Itinerary generation failed: ${error.message || error}`);
   }
-
-  return itinerary;
 }
 
 /**
@@ -128,7 +139,7 @@ export async function createTrip(
     });
 
     // 3. Generate Itinerary
-    const itinerary = generateItinerary({
+    const itinerary = await generateItinerary({
       destination,
       durationDays,
       hotelPreference,
@@ -332,7 +343,7 @@ export async function updateTrip(
       // 3. Regenerate Itinerary
       const durationMs = trip.endDate.getTime() - trip.startDate.getTime();
       const durationDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)) + 1);
-      trip.itinerary = generateItinerary({
+      trip.itinerary = await generateItinerary({
         destination,
         durationDays,
         hotelPreference: trip.hotelPreference,

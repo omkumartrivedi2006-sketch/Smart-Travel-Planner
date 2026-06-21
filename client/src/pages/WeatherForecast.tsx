@@ -18,7 +18,7 @@ interface WeatherData {
   windSpeed: number;
   visibility: number;
   uvIndex: number;
-  forecast: { day: string; high: number; low: number; condition: string; rain: string }[];
+  forecast: { day: string; high: number; low: number; condition: string; rain: string; icon?: string }[];
   bestTime: string;
   bestSeason: string;
   tempRange: string;
@@ -28,8 +28,10 @@ interface WeatherData {
 }
 
 const getDayName = (dateStr: string) => {
+  if (!dateStr) return "Today";
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return days[new Date(dateStr).getDay()];
+  const dayIndex = new Date(dateStr).getDay();
+  return isNaN(dayIndex) ? "Today" : days[dayIndex];
 };
 
 const getWeatherIcon = (cond: string) => {
@@ -71,25 +73,26 @@ export default function WeatherForecast() {
     setIsLoading(true);
     try {
       const res = await apiFetch(`/api/weather/${encodeURIComponent(target)}`);
-      if (res && res.data && res.data.weather) {
-        const weather = res.data.weather;
-        const mapped: WeatherData = {
-          city: res.data.destination,
-          country: res.data.country,
-          temp: Math.round(weather.temperature),
-          condition: weather.condition,
-          icon: getWeatherIcon(weather.condition),
-          humidity: weather.humidity || 60,
-          windSpeed: weather.windSpeed || 10,
-          visibility: weather.visibility || 10,
-          uvIndex: weather.uvIndex || 6,
-          forecast: weather.forecast.map((f: any) => ({
-            day: getDayName(f.date),
-            high: Math.round(f.temperature + 2),
-            low: Math.round(f.temperature - 2),
-            condition: `${getWeatherIcon(f.condition)} ${f.condition}`,
-            rain: f.condition.toLowerCase().includes("rain") ? "70%" : f.condition.toLowerCase().includes("snow") ? "50%" : "10%",
-          })),
+        if (res && res.data && res.data.weather) {
+          const weather = res.data.weather;
+          const mapped: WeatherData = {
+            city: res.data.destination,
+            country: res.data.country,
+            temp: Math.round(weather.temperature),
+            condition: weather.condition,
+            icon: weather.icon || getWeatherIcon(weather.condition),
+            humidity: weather.humidity || 60,
+            windSpeed: weather.windSpeed || 10,
+            visibility: weather.visibility || 10,
+            uvIndex: weather.uvIndex || 6,
+            forecast: (weather.forecast || []).map((f: any) => ({
+              day: getDayName(f.date),
+              high: Math.round(f.temperature + 2),
+              low: Math.round(f.temperature - 2),
+              condition: f.condition,
+              icon: f.icon || getWeatherIcon(f.condition),
+              rain: f.condition.toLowerCase().includes("rain") ? "70%" : f.condition.toLowerCase().includes("snow") ? "50%" : "10%",
+            })),
           bestTime: `The best time to visit ${res.data.destination} is during transitional months or dry seasons when temperatures are pleasant.`,
           bestSeason: weather.temperature < 15 ? "Winter Sports / Snowy Season" : "Dry / Mild Season",
           tempRange: `${Math.round(weather.temperature - 6)}-${Math.round(weather.temperature + 6)}°C`,
@@ -252,7 +255,11 @@ export default function WeatherForecast() {
                       <p className="text-muted-foreground font-medium">Current Weather Forecast</p>
                     </div>
                     <div className="text-left sm:text-right flex items-center gap-4">
-                      <span className="text-5xl">{currentWeather.icon}</span>
+                      {currentWeather.icon.startsWith("http") ? (
+                        <img src={currentWeather.icon} alt={currentWeather.condition} className="w-16 h-16 object-contain" />
+                      ) : (
+                        <span className="text-5xl">{currentWeather.icon}</span>
+                      )}
                       <div>
                         <p className="text-5xl sm:text-6xl font-bold text-foreground">{currentWeather.temp}°C</p>
                         <p className="text-muted-foreground font-semibold">{currentWeather.condition}</p>
@@ -299,14 +306,20 @@ export default function WeatherForecast() {
                     {currentWeather.forecast.map((day) => (
                       <Card key={day.day} className="border border-border shadow-md p-6 text-center bg-card text-card-foreground flex flex-col justify-between">
                         <p className="font-bold text-foreground mb-3">{day.day}</p>
-                        <p className="text-4xl mb-4">{day.condition.split(" ")[0]}</p>
+                        <div className="h-10 flex items-center justify-center mb-4">
+                          {day.icon && day.icon.startsWith("http") ? (
+                            <img src={day.icon} alt={day.condition} className="w-10 h-10 object-contain" />
+                          ) : (
+                            <span className="text-3xl">{day.icon || "⛅"}</span>
+                          )}
+                        </div>
                         <div className="space-y-1 mb-3">
                           <p className="text-sm text-muted-foreground">
                             <span className="font-bold text-foreground">{day.high}°C</span> / {day.low}°C
                           </p>
                           <p className="text-xs text-muted-foreground font-medium">Rain: {day.rain}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground font-semibold bg-muted py-1 rounded">{day.condition.split(" ").slice(1).join(" ")}</p>
+                        <p className="text-xs text-muted-foreground font-semibold bg-muted py-1 rounded">{day.condition}</p>
                       </Card>
                     ))}
                   </div>
