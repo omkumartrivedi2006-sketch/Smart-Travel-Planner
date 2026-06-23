@@ -29,8 +29,14 @@ export default function UserProfile() {
 
   // Load session or saved profile on mount
   useEffect(() => {
-    const savedProfile = localStorage.getItem("user_profile");
     const sessionUser = localStorage.getItem("session_user");
+    if (!sessionUser) {
+      toast.error("Access denied. Please log in first.");
+      navigate("/login");
+      return;
+    }
+
+    const savedProfile = localStorage.getItem("user_profile");
     
     if (savedProfile) {
       try {
@@ -40,7 +46,7 @@ export default function UserProfile() {
       } catch (e) {
         console.error("Failed to parse saved profile", e);
       }
-    } else if (sessionUser) {
+    } else {
       try {
         const user = JSON.parse(sessionUser);
         const nameParts = user.name.split(" ");

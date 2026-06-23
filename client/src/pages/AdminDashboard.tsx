@@ -3,12 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { BarChart3, Users, MapPin, TrendingUp, Edit2, Trash2, Plus, X, Check, Eye, Sun, Moon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
+import { apiFetch } from "@/lib/api";
 
 interface DestinationItem {
-  id: number;
+  id: string;
   name: string;
   country: string;
   category: string;
@@ -35,11 +36,7 @@ export default function AdminDashboard() {
   const { theme, toggleTheme } = useTheme();
 
   // Table States
-  const [destinations, setDestinations] = useState<DestinationItem[]>([
-    { id: 1, name: "Bali", country: "Indonesia", category: "Beach", rating: 4.8 },
-    { id: 2, name: "Swiss Alps", country: "Switzerland", category: "Adventure", rating: 4.9 },
-    { id: 3, name: "Madrid", country: "Spain", category: "Cultural", rating: 4.7 },
-  ]);
+  const [destinations, setDestinations] = useState<DestinationItem[]>([]);
 
   const [users, setUsers] = useState<UserItem[]>([
     { name: "John Doe", email: "john@example.com", trips: 5, status: "Active" },
@@ -63,12 +60,53 @@ export default function AdminDashboard() {
   const [destCategory, setDestCategory] = useState("Beach");
   const [destRating, setDestRating] = useState("4.5");
 
+  // Route protection and DB destinations loading
+  useEffect(() => {
+    const session = localStorage.getItem("session_user");
+    if (!session) {
+      toast.error("Access denied. Please log in first.");
+      navigate("/login");
+      return;
+    }
+    try {
+      const user = JSON.parse(session);
+      if (user.role !== "admin") {
+        toast.error("Access denied. Admin role required.");
+        navigate("/");
+        return;
+      }
+    } catch (e) {
+      navigate("/login");
+      return;
+    }
+
+    async function loadDestinations() {
+      try {
+        const res = await apiFetch("/api/destinations?limit=100");
+        if (res && res.data && res.data.destinations) {
+          const list = res.data.destinations.map((d: any) => ({
+            id: d._id,
+            name: d.name,
+            country: d.country,
+            category: d.category,
+            rating: d.rating || 4.5,
+          }));
+          setDestinations(list);
+        }
+      } catch (err: any) {
+        toast.error("Failed to load destinations: " + err.message);
+      }
+    }
+    loadDestinations();
+  }, []);
+
   // Review Actions
   const handleApproveReview = (id: number, author: string) => {
     setReviews((prev) => prev.filter((r) => r.id !== id));
     toast.success(`Review by ${author} approved successfully!`);
   };
 
+  // Reject Review
   const handleRejectReview = (id: number, author: string) => {
     setReviews((prev) => prev.filter((r) => r.id !== id));
     toast.error(`Review by ${author} rejected.`);
@@ -89,9 +127,16 @@ export default function AdminDashboard() {
   };
 
   // Destination Actions
-  const handleDeleteDestination = (id: number, name: string) => {
-    setDestinations((prev) => prev.filter((d) => d.id !== id));
-    toast.success(`Destination "${name}" removed successfully.`);
+  const handleDeleteDestination = async (id: string, name: string) => {
+    try {
+      await apiFetch(`/api/destinations/${id}`, {
+        method: "DELETE",
+      });
+      setDestinations((prev) => prev.filter((d) => d.id !== id));
+      toast.success(`Destination "${name}" removed successfully.`);
+    } catch (err: any) {
+      toast.error("Failed to delete destination: " + err.message);
+    }
   };
 
   const handleOpenAdd = () => {
@@ -102,24 +147,47 @@ export default function AdminDashboard() {
     setIsAddOpen(true);
   };
 
-  const handleSaveNewDestination = (e: React.FormEvent) => {
+  const handleSaveNewDestination = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!destName.trim() || !destCountry.trim()) {
       toast.error("Please fill out all fields");
       return;
     }
 
-    const newItem: DestinationItem = {
-      id: Date.now(),
-      name: destName,
-      country: destCountry,
-      category: destCategory,
-      rating: parseFloat(destRating) || 4.5,
-    };
+    try {
+      const res = await apiFetch("/api/destinations", {
+        method: "POST",
+        body: JSON.stringify({
+          name: destName,
+          country: destCountry,
+          category: destCategory,
+          rating: parseFloat(destRating) || 4.5,
+          description: "A wonderful travel destination offering premium activities and scenic sights.",
+          averageCost: 100,
+          latitude: 20.0,
+          longitude: 70.0,
+          activities: ["Sightseeing", "Cultural Tours"],
+          bestTimeToVisit: "October - March",
+          image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e"
+        }),
+      });
 
-    setDestinations((prev) => [...prev, newItem]);
-    setIsAddOpen(false);
-    toast.success(`Destination "${destName}" added successfully!`);
+      if (res && res.data && res.data.destination) {
+        const d = res.data.destination;
+        const newItem: DestinationItem = {
+          id: d._id,
+          name: d.name,
+          country: d.country,
+          category: d.category,
+          rating: d.rating || 4.5,
+        };
+        setDestinations((prev) => [...prev, newItem]);
+        setIsAddOpen(false);
+        toast.success(`Destination "${destName}" added successfully!`);
+      }
+    } catch (err: any) {
+      toast.error("Failed to add destination: " + err.message);
+    }
   };
 
   const handleOpenEdit = (dest: DestinationItem) => {
@@ -131,7 +199,7 @@ export default function AdminDashboard() {
     setIsEditOpen(true);
   };
 
-  const handleSaveEditDestination = (e: React.FormEvent) => {
+  const handleSaveEditDestination = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDest) return;
     if (!destName.trim() || !destCountry.trim()) {
@@ -139,21 +207,37 @@ export default function AdminDashboard() {
       return;
     }
 
-    setDestinations((prev) =>
-      prev.map((d) =>
-        d.id === editingDest.id
-          ? {
-              ...d,
-              name: destName,
-              country: destCountry,
-              category: destCategory,
-              rating: parseFloat(destRating) || 4.5,
-            }
-          : d
-      )
-    );
-    setIsEditOpen(false);
-    toast.success("Destination details updated successfully!");
+    try {
+      const res = await apiFetch(`/api/destinations/${editingDest.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: destName,
+          country: destCountry,
+          category: destCategory,
+          rating: parseFloat(destRating) || 4.5,
+        }),
+      });
+
+      if (res && res.data && res.data.destination) {
+        setDestinations((prev) =>
+          prev.map((d) =>
+            d.id === editingDest.id
+              ? {
+                  ...d,
+                  name: destName,
+                  country: destCountry,
+                  category: destCategory,
+                  rating: parseFloat(destRating) || 4.5,
+                }
+              : d
+          )
+        );
+        setIsEditOpen(false);
+        toast.success("Destination details updated successfully!");
+      }
+    } catch (err: any) {
+      toast.error("Failed to update destination: " + err.message);
+    }
   };
 
   return (

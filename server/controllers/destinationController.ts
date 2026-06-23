@@ -35,7 +35,12 @@ export async function getDestinations(
     }
     if (category) {
       const escapedCategory = String(category).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      queryFilter.category = new RegExp(`^${escapedCategory}$`, "i");
+      // Match against both legacy `category` string AND new `categories[]` array
+      queryFilter.$or = [
+        ...(queryFilter.$or || []),
+        { category: new RegExp(`^${escapedCategory}$`, "i") },
+        { categories: { $elemMatch: { $regex: new RegExp(escapedCategory, "i") } } },
+      ];
     }
     if (maxCost) {
       const costLimit = Number(maxCost);

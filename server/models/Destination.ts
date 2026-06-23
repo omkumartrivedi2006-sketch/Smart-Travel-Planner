@@ -5,6 +5,7 @@ export interface IDestination extends Document {
   description: string;
   country: string;
   category: "Beach" | "Mountain" | "City" | "Heritage" | "Nature" | "Adventure";
+  categories?: string[]; // Multi-category tags for advanced filtering
   latitude: number;
   longitude: number;
   averageCost: number;
@@ -76,6 +77,11 @@ const DestinationSchema: Schema<IDestination> = new Schema(
       trim: true,
     },
     popularPlaces: {
+      type: [String],
+      default: [],
+    },
+    // Multi-category tags for advanced filtering (e.g. ["beach", "food", "culture"])
+    categories: {
       type: [String],
       default: [],
     },
