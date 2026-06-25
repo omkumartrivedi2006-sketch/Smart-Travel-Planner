@@ -85,7 +85,8 @@ async function generateLocalFallbackResponse(
   // 5. Itinerary Inquiries
   if (query.includes("itinerary") || query.includes("plan") || query.includes("day")) {
     if (dest) {
-      const placesStr = dest.popularPlaces.map(p => `- Visit **${p}**`).join("\n");
+      const popularSpots = dest.topAttractions || dest.popularPlaces || [];
+      const placesStr = popularSpots.map(p => `- Visit **${p}**`).join("\n");
       const activitiesStr = dest.activities.map(a => `- Participate in **${a}**`).join("\n");
       return `Here is a suggested 3-Day weekend itinerary for **${dest.name}, ${dest.country}**:\n\n` +
         `**Day 1: Arrival & Exploration**\n` +
@@ -105,10 +106,10 @@ async function generateLocalFallbackResponse(
   // 6. Budget Advice
   if (query.includes("budget") || query.includes("cost") || query.includes("price") || query.includes("money")) {
     if (dest) {
-      const budgetEstimate = dest.averageCost;
+      const budgetEstimate = dest.averageBudget || dest.averageCost || 3000;
       return `**Budget Advice for ${dest.name}, ${dest.country}**:\n\n` +
-        `*   **Daily Base Cost Index**: ~$${budgetEstimate} USD per day per traveler (covers mid-range lodging and standard food).\n` +
-        `*   **Budgeting Category**: ${dest.averageCost > 150 ? "Premium/Luxury" : dest.averageCost > 60 ? "Mid-Range" : "Budget-friendly"}.\n\n` +
+        `*   **Daily Base Cost Index**: ~₹${budgetEstimate.toLocaleString()} INR per day per traveler (covers mid-range lodging and standard food).\n` +
+        `*   **Budgeting Category**: ${budgetEstimate > 10000 ? "Premium/Luxury" : budgetEstimate > 5000 ? "Mid-Range" : "Budget-friendly"}.\n\n` +
         `**Money Saving Tips**:\n` +
         `- Book local transport/trains instead of private flyers/cabs.\n` +
         `- Dine at local street markets rather than high-end resort diners.\n` +
@@ -120,13 +121,14 @@ async function generateLocalFallbackResponse(
 
   // 7. General Destination Suggestions
   if (dest) {
-    const places = dest.popularPlaces.join(", ");
+    const spotsList = dest.topAttractions || dest.popularPlaces || [];
+    const places = spotsList.join(", ");
     const activities = dest.activities.join(", ");
     return `**Destination Spotlight: ${dest.name}, ${dest.country}**\n\n` +
       `*   **Category**: ${dest.category}\n` +
       `*   **Best Time to Visit**: ${dest.bestTimeToVisit}\n` +
       `*   **Average Rating**: ⭐ ${dest.rating}/5.0\n` +
-      `*   **Description**: ${dest.description}\n` +
+      `*   **Description**: ${dest.shortDescription || ""}\n` +
       `*   **Top Spots**: ${places}\n` +
       `*   **Top Activities**: ${activities}\n\n` +
       `Let me know if you would like me to help you plan an itinerary, calculate a budget, or get packing checklists for this destination!`;

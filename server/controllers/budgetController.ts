@@ -54,23 +54,24 @@ export function performBudgetCalculation(params: {
   const durationDays = Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60 * 24)) + 1);
   const durationNights = Math.max(1, durationDays - 1);
 
-  // Cost factor matching destination averageCost (default baseline is $50/day)
-  const destinationCostFactor = destination.averageCost / 50;
+  // Cost factor matching destination averageBudget (default baseline is ₹4000/day)
+  const destBudget = destination.averageBudget || destination.averageCost || 4000;
+  const destinationCostFactor = destBudget / 4000;
 
   // 2. Hotel Cost estimation
   // Assumes 2 travelers per room
   const roomsCount = Math.max(1, Math.ceil(travelers / 2));
-  let baseHotelDailyRate = 80; // mid-range default
-  if (hotelPreference === "budget") baseHotelDailyRate = 35;
-  if (hotelPreference === "luxury") baseHotelDailyRate = 220;
+  let baseHotelDailyRate = 4000; // mid-range default (INR)
+  if (hotelPreference === "budget") baseHotelDailyRate = 1500;
+  if (hotelPreference === "luxury") baseHotelDailyRate = 12000;
 
   const roomDailyRate = baseHotelDailyRate * destinationCostFactor;
   const hotelCost = roomDailyRate * roomsCount * durationNights;
 
   // 3. Food Cost estimation
-  let baseFoodDailyRatePerPerson = 35; // mid-range default
-  if (hotelPreference === "budget") baseFoodDailyRatePerPerson = 15;
-  if (hotelPreference === "luxury") baseFoodDailyRatePerPerson = 85;
+  let baseFoodDailyRatePerPerson = 1000; // mid-range default (INR)
+  if (hotelPreference === "budget") baseFoodDailyRatePerPerson = 300;
+  if (hotelPreference === "luxury") baseFoodDailyRatePerPerson = 3500;
 
   const foodDailyRate = baseFoodDailyRatePerPerson * destinationCostFactor;
   const foodCost = foodDailyRate * travelers * durationDays;
@@ -93,24 +94,24 @@ export function performBudgetCalculation(params: {
   }
 
   if (transportPreference === "flight") {
-    // Base ticket cost per traveler + mileage cost
-    const ticketCost = 100 + distanceKm * 0.12;
+    // Base ticket cost per traveler + mileage cost (INR)
+    const ticketCost = 4000 + distanceKm * 10;
     transportCost = ticketCost * travelers;
   } else if (transportPreference === "train") {
-    // Base ticket cost per traveler + mileage cost
-    const ticketCost = 15 + distanceKm * 0.06;
+    // Base ticket cost per traveler + mileage cost (INR)
+    const ticketCost = 400 + distanceKm * 2;
     transportCost = ticketCost * travelers;
   } else {
-    // Car rental / driving costs per day
+    // Car rental / driving costs per day (INR)
     const vehiclesCount = Math.max(1, Math.ceil(travelers / 4));
-    const dailyRentalCost = 40 + (distanceKm * 0.15) / durationDays;
+    const dailyRentalCost = 1800 + (distanceKm * 12) / durationDays;
     transportCost = dailyRentalCost * vehiclesCount * durationDays;
   }
 
   // 5. Activities Cost estimation
-  let baseActivitiesDailyRatePerPerson = 25; // mid-range default
-  if (hotelPreference === "budget") baseActivitiesDailyRatePerPerson = 10;
-  if (hotelPreference === "luxury") baseActivitiesDailyRatePerPerson = 70;
+  let baseActivitiesDailyRatePerPerson = 750; // mid-range default (INR)
+  if (hotelPreference === "budget") baseActivitiesDailyRatePerPerson = 200;
+  if (hotelPreference === "luxury") baseActivitiesDailyRatePerPerson = 3000;
 
   const activitiesDailyRate = baseActivitiesDailyRatePerPerson * destinationCostFactor;
   const activitiesCost = activitiesDailyRate * travelers * durationDays;
@@ -123,12 +124,12 @@ export function performBudgetCalculation(params: {
   const totalEstimate = subTotal + miscellaneousCost;
 
   return {
-    hotelCost: Math.round(hotelCost * 100) / 100,
-    foodCost: Math.round(foodCost * 100) / 100,
-    transportCost: Math.round(transportCost * 100) / 100,
-    activitiesCost: Math.round(activitiesCost * 100) / 100,
-    miscellaneousCost: Math.round(miscellaneousCost * 100) / 100,
-    totalEstimate: Math.round(totalEstimate * 100) / 100,
+    hotelCost: Math.round(hotelCost),
+    foodCost: Math.round(foodCost),
+    transportCost: Math.round(transportCost),
+    activitiesCost: Math.round(activitiesCost),
+    miscellaneousCost: Math.round(miscellaneousCost),
+    totalEstimate: Math.round(totalEstimate),
   };
 }
 

@@ -23,7 +23,7 @@ interface RecItem {
 export default function AIRecommendations() {
   const [, navigate] = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const [budget, setBudget] = useState(2500);
+  const [budget, setBudget] = useState(7500);
   const [duration, setDuration] = useState(7);
   const [travelStyle, setTravelStyle] = useState("Comfort");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
@@ -77,13 +77,12 @@ export default function AIRecommendations() {
       let score = 70; // Base score
 
       // 1. Budget checking
-      // Map budget style thresholds
-      // cost < 50 = "Budget", 50-150 = "Comfort/Mid-range", >150 = "Luxury/Premium"
+      // Map budget style thresholds (in INR)
       const cost = item.averageCost;
       let destStyle = "Budget";
-      if (cost >= 50 && cost <= 150) {
+      if (cost > 5000 && cost <= 10000) {
         destStyle = "Comfort";
-      } else if (cost > 150) {
+      } else if (cost > 10000) {
         destStyle = "Luxury";
       }
 
@@ -93,13 +92,14 @@ export default function AIRecommendations() {
         score -= 10;
       }
 
-      // Convert daily budget limit from slider (in INR) to USD approx (divide by 80)
-      const dailyLimitUsd = (currentBudget / (duration || 7)) / 80;
-      if (dailyLimitUsd >= cost) {
+      // Compare daily budget limit from slider (in INR) to daily cost of destination (in INR)
+      const dailyLimit = currentBudget / (duration || 7);
+      if (dailyLimit >= cost) {
         score += 10;
       } else {
         score -= 20; // daily limit is too low for this destination
       }
+
 
       // 2. Category interest check
       if (interests.length > 0) {
@@ -189,14 +189,15 @@ export default function AIRecommendations() {
                     value={[budget]}
                     onValueChange={(val) => setBudget(val[0])}
                     min={500}
-                    max={20000}
+                    max={25000}
                     step={250}
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground mt-1">
                     <span>₹500</span>
-                    <span>₹20,000</span>
+                    <span>₹25,000</span>
                   </div>
+
                 </div>
 
                 <div>

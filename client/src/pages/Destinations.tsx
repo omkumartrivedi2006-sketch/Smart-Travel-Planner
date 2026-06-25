@@ -84,10 +84,11 @@ function removeRecentSearch(query: string) {
 }
 
 function getBudgetFromCost(cost: number): "Budget" | "Mid-range" | "Premium" {
-  if (cost < 50) return "Budget";
-  if (cost <= 150) return "Mid-range";
+  if (cost <= 5000) return "Budget";
+  if (cost <= 10000) return "Mid-range";
   return "Premium";
 }
+
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
 
@@ -256,10 +257,10 @@ export default function Destinations() {
             categories: Array.isArray(d.categories) && d.categories.length > 0
               ? d.categories
               : [d.category?.toLowerCase() || "city"],
-            budget: getBudgetFromCost(d.averageCost),
+            budget: getBudgetFromCost(d.averageBudget || d.averageCost || 0),
             rating: d.rating || 4.5,
-            image: d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
-            description: d.description || "",
+            image: d.image || (d.images && d.images[0]) || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+            description: d.shortDescription || d.description || "",
             source: "db" as const,
             latitude: d.latitude,
             longitude: d.longitude,

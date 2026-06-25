@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation, useParams } from "wouter";
 import { Star, MapPin, Heart, Compass, Sun, Moon, Utensils, Hotel, Map, Navigation } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -13,60 +13,35 @@ import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 interface Destination {
   id: string;
   name: string;
+  city: string;
+  state: string;
   country: string;
-  category: string;
-  style: string;
-  rating: number;
-  reviewsCount: number;
-  budgetLevel: string;
-  bestTime: string;
-  avgTemp: string;
-  image: string;
-  about: string;
-  aboutExtra: string;
-  attractions: string[];
-  weather: { day: string; temp: string; icon: string }[];
+  continent: string;
+  category: "Beach" | "Mountain" | "City" | "Heritage" | "Nature" | "Adventure";
+  shortDescription: string;
+  fullDescription: string;
+  bestTimeToVisit: string;
+  averageBudget: number; // in ₹
+  durationRecommendation: string;
+  weatherInformation: string;
+  famousFor: string;
+  topAttractions: string[];
+  activities: string[];
+  localCuisine: string[];
+  transportationOptions: string[];
+  nearestAirport: string;
+  nearestRailwayStation: string;
+  languagesSpoken: string[];
   currency: string;
-  language: string;
-  visa: string;
+  safetyInformation: string;
+  travelTips: string;
   latitude: number;
   longitude: number;
+  images: string[];
+  rating: number;
+  reviewsCount: number;
+  weather: { day: string; temp: string; icon: string }[];
 }
-
-const getCurrency = (country: string) => {
-  const c = country.toLowerCase();
-  if (c.includes("india")) return "Indian Rupee (INR)";
-  if (c.includes("switzerland") || c.includes("swiss")) return "Swiss Franc (CHF)";
-  if (c.includes("spain") || c.includes("france") || c.includes("italy") || c.includes("netherlands") || c.includes("czech")) return "Euro (EUR)";
-  if (c.includes("united kingdom") || c.includes("london")) return "British Pound (GBP)";
-  if (c.includes("united states") || c.includes("usa") || c.includes("new york")) return "US Dollar (USD)";
-  if (c.includes("japan")) return "Japanese Yen (JPY)";
-  if (c.includes("singapore")) return "Singapore Dollar (SGD)";
-  if (c.includes("indonesia") || c.includes("bali")) return "Indonesian Rupiah (IDR)";
-  if (c.includes("thailand")) return "Thai Baht (THB)";
-  if (c.includes("vietnam")) return "Vietnamese Dong (VND)";
-  if (c.includes("united arab emirates") || c.includes("dubai")) return "UAE Dirham (AED)";
-  return "Local Currency";
-};
-
-const getLanguage = (country: string) => {
-  const c = country.toLowerCase();
-  if (c.includes("india")) return "Hindi, English, Regional";
-  if (c.includes("spain")) return "Spanish";
-  if (c.includes("france")) return "French";
-  if (c.includes("italy")) return "Italian";
-  if (c.includes("japan")) return "Japanese";
-  if (c.includes("indonesia") || c.includes("bali")) return "Indonesian, Balinese, English";
-  if (c.includes("united arab emirates") || c.includes("dubai")) return "Arabic, English";
-  return "English, Local Language";
-};
-
-const getVisa = (country: string) => {
-  const c = country.toLowerCase();
-  if (c.includes("india")) return "Visa on Arrival / eVisa";
-  if (c.includes("spain") || c.includes("france") || c.includes("italy") || c.includes("switzerland") || c.includes("netherlands") || c.includes("czech")) return "Schengen Visa / Visa-Free";
-  return "Visa on Arrival / Visa-Free";
-};
 
 const getDayName = (dateStr: string) => {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -85,7 +60,7 @@ const getWeatherIcon = (cond: string) => {
 export default function DestinationDetails() {
   const [, navigate] = useLocation();
   const params = useParams();
-  const id = params.id; // string ObjectId
+  const id = params.id;
   const { theme, toggleTheme } = useTheme();
   
   const [destination, setDestination] = useState<Destination | null>(null);
@@ -160,7 +135,7 @@ export default function DestinationDetails() {
           setRouteInfo({
             distance: `${d.distanceKm.toFixed(0)} km`,
             duration: durationText,
-            cost: `₹${Math.round(d.estimatedCost * 80).toLocaleString()}`,
+            cost: `₹${Math.round(d.estimatedCost).toLocaleString()}`,
             mode: transMode === "car" ? "Driving" : transMode === "train" ? "Train" : "Flight",
           });
         }
@@ -199,7 +174,6 @@ export default function DestinationDetails() {
           }
         } catch (weatherErr) {
           console.error("Failed to load weather forecast", weatherErr);
-          // generate fallback forecast if weather API call fails
           const today = new Date();
           weatherList = Array.from({ length: 5 }).map((_, i) => {
             const nextDate = new Date(today);
@@ -222,28 +196,38 @@ export default function DestinationDetails() {
           console.error("Failed to load local places", placeErr);
         }
 
-        // Map to UI model
+        // Map to UI model using all 28 fields
         const mappedDest: Destination = {
           id: d._id,
           name: d.name,
+          city: d.city || d.name,
+          state: d.state || d.country,
           country: d.country,
+          continent: d.continent || "Asia",
           category: d.category,
-          style: d.category === "Beach" ? "Coastal" : d.category === "Mountain" ? "Alpine" : "Scenic",
-          rating: d.rating || 4.5,
-          reviewsCount: Math.floor(Math.random() * 1500) + 200,
-          budgetLevel: d.averageCost < 50 ? "Budget-Friendly" : d.averageCost <= 150 ? "Mid-range" : "Premium",
-          bestTime: d.bestTimeToVisit,
-          avgTemp: d.category === "Mountain" ? "6°C" : "28°C",
-          image: d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
-          about: d.description,
-          aboutExtra: `Experience the best of ${d.name} in ${d.country}. Known as a top destination for ${d.category.toLowerCase()} travelers, offering outstanding activities and memorable sightseeing.`,
-          attractions: d.activities && d.activities.length > 0 ? d.activities : ["Sightseeing", "Local Tours"],
-          weather: weatherList,
-          currency: getCurrency(d.country),
-          language: getLanguage(d.country),
-          visa: getVisa(d.country),
+          shortDescription: d.shortDescription || d.description || "",
+          fullDescription: d.fullDescription || d.about || `Experience the best of ${d.name} in ${d.country}. Known as a top destination for ${d.category.toLowerCase()} travelers, offering outstanding activities and memorable sightseeing.`,
+          bestTimeToVisit: d.bestTimeToVisit || "October - March",
+          averageBudget: d.averageBudget || d.averageCost || 3000,
+          durationRecommendation: d.durationRecommendation || "3-5 Days",
+          weatherInformation: d.weatherInformation || "Lush climate.",
+          famousFor: d.famousFor || `Renowned for its ${d.category.toLowerCase()} tourism.`,
+          topAttractions: d.topAttractions || d.popularPlaces || [],
+          activities: d.activities || [],
+          localCuisine: d.localCuisine || [],
+          transportationOptions: d.transportationOptions || ["Taxi", "Local Bus"],
+          nearestAirport: d.nearestAirport || "Nearest Regional Airport",
+          nearestRailwayStation: d.nearestRailwayStation || "Nearest Railway Station",
+          languagesSpoken: d.languagesSpoken || ["English"],
+          currency: d.currency || "Local Currency",
+          safetyInformation: d.safetyInformation || "Stay safe and follow local guidelines.",
+          travelTips: d.travelTips || "Carry local currency and maps.",
           latitude: d.latitude,
           longitude: d.longitude,
+          images: d.images && d.images.length > 0 ? d.images : [d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e"],
+          rating: d.rating || 4.5,
+          reviewsCount: Math.floor(Math.random() * 1500) + 200,
+          weather: weatherList,
         };
 
         setDestination(mappedDest);
@@ -297,8 +281,14 @@ export default function DestinationDetails() {
   };
 
   const handlePlanTrip = () => {
-    // Navigate to planner with pre-selected destination name
     navigate(`/planner?destination=${encodeURIComponent(destination.name)}`);
+  };
+
+  // Compute budget category text for highlights
+  const getBudgetCategoryText = (cost: number) => {
+    if (cost <= 5000) return "Budget (₹0-5k)";
+    if (cost <= 10000) return "Mid-range (₹5k-10k)";
+    return "Premium (₹10k-25k)";
   };
 
   return (
@@ -333,16 +323,36 @@ export default function DestinationDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            {/* Image Gallery */}
+            {/* Gallery Section */}
             <Card className="border border-border shadow-lg overflow-hidden mb-8 bg-card">
-              <img
-                src={destination.image}
-                alt={destination.name}
-                className="w-full h-96 object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                }}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2">
+                <div className="md:col-span-2 h-[350px] md:h-[400px]">
+                  <img
+                    src={destination.images[0]}
+                    alt={destination.name}
+                    className="w-full h-full object-cover rounded-lg"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-1 gap-2 h-auto md:h-[400px]">
+                  {(destination.images.slice(1, 3).length > 0 ? destination.images.slice(1, 3) : [
+                    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+                    "https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a"
+                  ].slice(0, 2)).map((imgUrl, idx) => (
+                    <img
+                      key={idx}
+                      src={imgUrl}
+                      alt={`${destination.name} gallery ${idx + 1}`}
+                      className="w-full h-[120px] md:h-[196px] object-cover rounded-lg"
+                      onError={(e) => {
+                        e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
             </Card>
 
             {/* Destination Info */}
@@ -351,31 +361,40 @@ export default function DestinationDetails() {
                 <div>
                   <h2 className="text-4xl font-bold text-foreground mb-2">{destination.name}</h2>
                   <p className="text-lg text-muted-foreground flex items-center gap-2">
-                    <MapPin className="w-5 h-5" />
-                    {destination.country} • {destination.category} • {destination.style}
+                    <MapPin className="w-5 h-5 text-teal-600" />
+                    {destination.city}, {destination.state}, {destination.country}
                   </p>
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="flex items-center sm:justify-end gap-2 mb-2">
-                    <Star className="w-5 h-5 fill-orange-450 text-orange-500" />
+                    <Star className="w-5 h-5 fill-amber-500 text-amber-500" />
                     <span className="text-2xl font-bold">{destination.rating}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{destination.reviewsCount} reviews</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              {/* Highlights Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
                 <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Budget Level</p>
-                  <p className="font-bold text-foreground">{destination.budgetLevel}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Category</p>
+                  <p className="font-bold text-foreground text-sm uppercase">{destination.category}</p>
                 </Card>
                 <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Best Time</p>
-                  <p className="font-bold text-foreground">{destination.bestTime}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Best Time</p>
+                  <p className="font-bold text-foreground text-sm">{destination.bestTimeToVisit}</p>
                 </Card>
                 <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Avg. Temp</p>
-                  <p className="font-bold text-foreground">{destination.avgTemp}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                  <p className="font-bold text-foreground text-sm">{destination.durationRecommendation}</p>
+                </Card>
+                <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Avg. Budget</p>
+                  <p className="font-bold text-foreground text-sm">₹{destination.averageBudget.toLocaleString()}</p>
+                </Card>
+                <Card className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Tier</p>
+                  <p className="font-bold text-foreground text-sm leading-tight">{getBudgetCategoryText(destination.averageBudget)}</p>
                 </Card>
               </div>
             </div>
@@ -383,11 +402,11 @@ export default function DestinationDetails() {
             {/* Description */}
             <div className="mb-8">
               <h3 className="text-2xl font-bold text-foreground mb-4">About</h3>
-              <p className="text-foreground/80 leading-relaxed mb-4">
-                {destination.about}
+              <p className="text-lg text-foreground/90 font-semibold leading-relaxed mb-4 border-l-4 border-teal-500 pl-4 bg-teal-500/5 py-3 rounded-r-lg">
+                {destination.shortDescription}
               </p>
               <p className="text-foreground/80 leading-relaxed">
-                {destination.aboutExtra}
+                {destination.fullDescription}
               </p>
             </div>
 
@@ -401,19 +420,19 @@ export default function DestinationDetails() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                   <div className="bg-card p-3 rounded-lg border border-border">
                     <p className="text-xs text-muted-foreground mb-1">Distance</p>
-                    <p className="text-xl font-bold text-foreground">{routeInfo.distance}</p>
+                    <p className="text-lg font-bold text-foreground">{routeInfo.distance}</p>
                   </div>
                   <div className="bg-card p-3 rounded-lg border border-border">
                     <p className="text-xs text-muted-foreground mb-1">Travel Time</p>
-                    <p className="text-xl font-bold text-foreground">{routeInfo.duration}</p>
+                    <p className="text-lg font-bold text-foreground">{routeInfo.duration}</p>
                   </div>
                   <div className="bg-card p-3 rounded-lg border border-border">
                     <p className="text-xs text-muted-foreground mb-1">Estimated Cost</p>
-                    <p className="text-xl font-bold text-foreground text-emerald-600 dark:text-emerald-400">{routeInfo.cost}</p>
+                    <p className="text-lg font-bold text-foreground text-emerald-600 dark:text-emerald-400">{routeInfo.cost}</p>
                   </div>
                   <div className="bg-card p-3 rounded-lg border border-border">
                     <p className="text-xs text-muted-foreground mb-1">Recommended Mode</p>
-                    <p className="text-xl font-bold text-foreground">{routeInfo.mode}</p>
+                    <p className="text-lg font-bold text-foreground">{routeInfo.mode}</p>
                   </div>
                 </div>
               </Card>
@@ -454,7 +473,127 @@ export default function DestinationDetails() {
               </Card>
             </div>
 
-            {/* Real-time Local Places & Attractions */}
+            {/* Attractions & Activities Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div>
+                <h3 className="text-2xl font-bold text-foreground mb-4">Top Attractions</h3>
+                <div className="space-y-3">
+                  {destination.topAttractions.map((attraction, idx) => (
+                    <Card key={idx} className="border border-border bg-card text-card-foreground shadow-sm p-4 flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold text-xs shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="text-foreground font-medium text-sm">{attraction}</span>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-foreground mb-4">Activities & Experiences</h3>
+                <div className="space-y-3">
+                  {destination.activities.map((activity, idx) => (
+                    <Card key={idx} className="border border-border bg-card text-card-foreground shadow-sm p-4 flex items-center gap-3">
+                      <Compass className="w-5 h-5 text-teal-600 shrink-0" />
+                      <span className="text-foreground font-medium text-sm">{activity}</span>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Food Section */}
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
+                <Utensils className="w-6 h-6 text-teal-600" />
+                Local Cuisine & Dining
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {destination.localCuisine.map((food, idx) => (
+                  <Card key={idx} className="border border-border bg-card text-card-foreground shadow-sm p-4 text-center hover:scale-[1.02] transition-transform">
+                    <p className="font-bold text-foreground text-sm">{food}</p>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Must Try</span>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Transport Options */}
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold text-foreground mb-4">How to Reach & Get Around</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="border border-border bg-card text-card-foreground shadow-sm p-6">
+                  <h4 className="font-bold text-base mb-4 text-foreground flex items-center gap-2">
+                    🛫 Key Hubs
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <span className="bg-muted p-2 rounded-lg text-lg leading-none shrink-0">✈️</span>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Nearest Airport</p>
+                        <p className="font-semibold text-foreground text-sm">{destination.nearestAirport}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="bg-muted p-2 rounded-lg text-lg leading-none shrink-0">🚂</span>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Nearest Railway Station</p>
+                        <p className="font-semibold text-foreground text-sm">{destination.nearestRailwayStation}</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="border border-border bg-card text-card-foreground shadow-sm p-6">
+                  <h4 className="font-bold text-base mb-4 text-foreground flex items-center gap-2">
+                    🚗 Getting Around
+                  </h4>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {destination.transportationOptions.map((opt, idx) => (
+                      <span key={idx} className="bg-teal-500/10 text-teal-650 dark:text-teal-400 font-semibold px-3 py-1 rounded-full text-[10px] uppercase">
+                        {opt}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Local transport like taxis, auto-rickshaws, metro networks or rental cars are readily available for sightseeing and touring.
+                  </p>
+                </Card>
+              </div>
+            </div>
+
+            {/* Weather Information & Forecast */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <Card className="md:col-span-1 border border-border bg-card text-card-foreground shadow-sm p-6 flex flex-col justify-center">
+                <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                  <Sun className="w-5 h-5 text-amber-500" />
+                  Climate Details
+                </h3>
+                <p className="text-xs text-foreground/80 leading-relaxed">
+                  {destination.weatherInformation}
+                </p>
+              </Card>
+
+              <Card className="md:col-span-2 border border-border bg-card text-card-foreground shadow-sm p-6">
+                <h3 className="text-xl font-bold text-foreground mb-4">5-Day Weather Forecast</h3>
+                <div className="grid grid-cols-5 gap-2">
+                  {destination.weather.map((day) => (
+                    <div key={day.day} className="bg-muted/50 rounded-lg p-2.5 text-center border border-border/50">
+                      <p className="text-[10px] font-bold text-foreground mb-1.5">{day.day}</p>
+                      <div className="h-8 flex items-center justify-center mb-1.5">
+                        {day.icon.startsWith("http") ? (
+                          <img src={day.icon} alt={day.day} className="w-8 h-8 object-contain" />
+                        ) : (
+                          <span className="text-2xl leading-none">{day.icon}</span>
+                        )}
+                      </div>
+                      <p className="text-xs font-bold text-foreground">{day.temp}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+
+            {/* Real-time Local Sights & Places */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h3 className="text-2xl font-bold text-foreground">Explore Local Places</h3>
@@ -471,10 +610,10 @@ export default function DestinationDetails() {
                       <Button
                         key={tab.id}
                         variant={isActive ? "default" : "outline"}
-                        className={isActive ? "bg-teal-600 hover:bg-teal-700 text-white" : "border-border text-foreground hover:bg-muted"}
+                        className={isActive ? "bg-teal-600 hover:bg-teal-700 text-white border-0" : "border-border text-foreground hover:bg-muted"}
                         onClick={() => setActiveCategory(tab.id)}
                       >
-                        <Icon className="w-4 h-4 mr-2" />
+                        <Icon className="w-4 h-4 mr-2 animate-in duration-300" />
                         {tab.label}
                       </Button>
                     );
@@ -483,7 +622,7 @@ export default function DestinationDetails() {
               </div>
 
               {places.length === 0 ? (
-                <Card className="border border-border bg-card text-card-foreground shadow-md p-8 text-center text-muted-foreground">
+                <Card className="border border-border bg-card text-card-foreground shadow-sm p-8 text-center text-muted-foreground text-sm">
                   Searching for local places in {destination.name}... (Ensure Geoapify API key is set)
                 </Card>
               ) : (
@@ -497,12 +636,12 @@ export default function DestinationDetails() {
                     })
                     .slice(0, 10)
                     .map((place) => (
-                      <Card key={place.name} className="border border-border bg-card text-card-foreground shadow-md p-5 flex flex-col justify-between hover:shadow-lg transition-shadow">
+                      <Card key={place.name} className="border border-border bg-card text-card-foreground shadow-sm p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
                         <div>
                           <div className="flex justify-between items-start gap-2 mb-2">
-                            <h4 className="font-bold text-foreground text-base leading-tight">{place.name}</h4>
+                            <h4 className="font-bold text-foreground text-sm leading-tight">{place.name}</h4>
                             {place.rating && (
-                              <span className="text-amber-500 font-bold flex items-center gap-1 text-xs shrink-0 bg-amber-500/10 px-2 py-0.5 rounded">
+                              <span className="text-amber-500 font-bold flex items-center gap-1 text-[10px] shrink-0 bg-amber-500/10 px-2 py-0.5 rounded">
                                 ⭐ {place.rating}
                               </span>
                             )}
@@ -510,7 +649,7 @@ export default function DestinationDetails() {
                           <p className="text-muted-foreground text-xs leading-relaxed mb-4">{place.address}</p>
                         </div>
                         <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold border-t border-border pt-3">
-                          <span className="bg-teal-500/10 text-teal-600 px-2.5 py-0.5 rounded uppercase">
+                          <span className="bg-teal-500/10 text-teal-650 px-2 py-0.5 rounded uppercase">
                             {place.category}
                           </span>
                           <span>
@@ -525,45 +664,12 @@ export default function DestinationDetails() {
                     }
                     return p.category === activeCategory;
                   }).length === 0 && (
-                    <Card className="col-span-2 border border-border bg-card text-card-foreground shadow-md p-8 text-center text-muted-foreground">
+                    <Card className="col-span-2 border border-border bg-card text-card-foreground shadow-sm p-8 text-center text-muted-foreground text-sm">
                       No local {activeCategory.toLowerCase()}s found in this radius.
                     </Card>
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Predefined Top Attractions (for visual parity) */}
-            <div className="mb-8">
-              <h3 className="text-2xl font-bold text-foreground mb-4">Activities & Experiences</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {destination.attractions.map((attraction) => (
-                  <Card key={attraction} className="border border-border bg-card text-card-foreground shadow-md p-4 flex items-center gap-3">
-                    <Compass className="w-5 h-5 text-teal-600 flex-shrink-0" />
-                    <span className="text-foreground font-medium">{attraction}</span>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Weather */}
-            <div className="mb-8">
-              <h3 className="text-2xl font-bold text-foreground mb-4">Weather Forecast</h3>
-              <div className="grid grid-cols-5 gap-2">
-                {destination.weather.map((day) => (
-                  <Card key={day.day} className="border border-border bg-card text-card-foreground shadow-md p-4 text-center">
-                    <p className="text-sm font-semibold text-foreground mb-2">{day.day}</p>
-                    <div className="h-8 flex items-center justify-center mb-2">
-                      {day.icon.startsWith("http") ? (
-                        <img src={day.icon} alt={day.day} className="w-8 h-8 object-contain" />
-                      ) : (
-                        <span className="text-2xl">{day.icon}</span>
-                      )}
-                    </div>
-                    <p className="font-bold text-foreground">{day.temp}</p>
-                  </Card>
-                ))}
-              </div>
             </div>
           </div>
 
@@ -571,19 +677,19 @@ export default function DestinationDetails() {
           <div className="lg:col-span-1">
             <Card className="border border-border bg-card text-card-foreground shadow-lg p-6 sticky top-24">
               <div className="space-y-4">
-                <Button onClick={handlePlanTrip} className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg">
+                <Button onClick={handlePlanTrip} className="w-full bg-teal-600 hover:bg-teal-700 text-white py-6 text-lg font-semibold shadow-md transition-all duration-200">
                   Plan Trip Here
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-teal-600 text-teal-600 hover:bg-teal-500/10 py-6"
+                  className="w-full border-teal-600 text-teal-600 hover:bg-teal-500/10 py-6 font-semibold"
                   onClick={() => navigate(`/route-planner?end=${encodeURIComponent(destination.name)}`)}
                 >
                   View Route
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full border-border text-foreground hover:bg-muted py-6"
+                  className="w-full border-border text-foreground hover:bg-muted py-6 font-semibold"
                   onClick={() => navigate(`/ai-recommendations?interests=${encodeURIComponent(destination.category)}`)}
                 >
                   Get AI Recommendations
@@ -591,31 +697,59 @@ export default function DestinationDetails() {
                 <Button
                   variant="outline"
                   onClick={handleWishlistToggle}
-                  className={`w-full py-6 flex items-center justify-center gap-2 ${
+                  className={`w-full py-6 flex items-center justify-center gap-2 font-semibold ${
                     isWishlisted 
                       ? "bg-red-500/10 border-red-300 text-red-500 hover:bg-red-500/20" 
                       : "border-border text-foreground hover:bg-muted"
                   }`}
                 >
-                  <Heart className={`w-5 h-5 ${isWishlisted ? "fill-red-650 text-red-500" : ""}`} />
+                  <Heart className={`w-5 h-5 ${isWishlisted ? "fill-red-500 text-red-500" : ""}`} />
                   {isWishlisted ? "Saved in Wishlist" : "Add to Wishlist"}
                 </Button>
               </div>
 
-              <div className="mt-8 pt-8 border-t border-border">
-                <h4 className="font-bold text-foreground mb-4">Quick Info</h4>
-                <div className="space-y-3 text-sm">
+              <div className="mt-8 pt-8 border-t border-border space-y-6">
+                <div>
+                  <h4 className="font-bold text-foreground mb-3 flex items-center gap-2">
+                    🎯 Famous For
+                  </h4>
+                  <p className="text-xs text-foreground/80 leading-relaxed">
+                    {destination.famousFor}
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-xs">
                   <div>
-                    <p className="text-muted-foreground">Currency</p>
+                    <p className="text-muted-foreground font-semibold">Currency</p>
                     <p className="font-semibold text-foreground">{destination.currency}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Language</p>
-                    <p className="font-semibold text-foreground">{destination.language}</p>
+                    <p className="text-muted-foreground font-semibold">Spoken Languages</p>
+                    <p className="font-semibold text-foreground">{destination.languagesSpoken.join(", ")}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Visa</p>
-                    <p className="font-semibold text-foreground">{destination.visa}</p>
+                    <p className="text-muted-foreground font-semibold">Continent</p>
+                    <p className="font-semibold text-foreground">{destination.continent}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-border pt-4 space-y-4">
+                  <div className="bg-amber-500/5 dark:bg-amber-400/5 border border-amber-500/20 p-4 rounded-lg">
+                    <h5 className="font-bold text-amber-600 dark:text-amber-400 text-xs mb-1">
+                      ⚠️ Safety Guideline
+                    </h5>
+                    <p className="text-[11px] text-foreground/80 leading-relaxed">
+                      {destination.safetyInformation}
+                    </p>
+                  </div>
+
+                  <div className="bg-blue-500/5 dark:bg-blue-400/5 border border-blue-500/20 p-4 rounded-lg">
+                    <h5 className="font-bold text-blue-600 dark:text-blue-400 text-xs mb-1">
+                      💡 Travel Tip
+                    </h5>
+                    <p className="text-[11px] text-foreground/80 leading-relaxed">
+                      {destination.travelTips}
+                    </p>
                   </div>
                 </div>
               </div>

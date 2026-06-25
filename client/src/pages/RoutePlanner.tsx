@@ -151,7 +151,7 @@ export default function RoutePlanner() {
           name: `${transitMode} Route (via live routing API)`,
           time: durationText,
           distance: `${distanceKm.toFixed(1)} km`,
-          toll: `₹${Math.round(estimatedCost * 80).toLocaleString()}`, // Convert USD to INR
+          toll: `₹${Math.round(estimatedCost).toLocaleString()}`,
           directions: suggestedItinerary.map((stepText: string, idx: number) => ({
             step: idx + 1,
             direction: stepText,

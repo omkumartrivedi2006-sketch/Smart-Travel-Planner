@@ -185,7 +185,9 @@ export default function TripDetails() {
       doc.setFont("Helvetica", "bold");
       doc.setFontSize(15);
       doc.setTextColor(13, 148, 136); // Teal
-      doc.text(`${trip.destination.name.toUpperCase()}, ${trip.destination.country.toUpperCase()}`, margin, yPos);
+      const destName = trip?.destination?.name ?? "Unknown Destination";
+      const destCountry = trip?.destination?.country ?? "";
+      doc.text(`${destName.toUpperCase()}, ${destCountry.toUpperCase()}`, margin, yPos);
 
       // Horizontal separator line
       yPos += 5;
@@ -357,7 +359,7 @@ export default function TripDetails() {
       }
 
       // Download file to device
-      const cleanDestName = trip.destination.name.replace(/\s+/g, "_");
+      const cleanDestName = (trip?.destination?.name ?? "Unknown").replace(/\s+/g, "_");
       doc.save(`Trip_Plan_${cleanDestName}.pdf`);
       toast.success("Itinerary exported as PDF successfully!");
     } catch (err: any) {
@@ -374,7 +376,8 @@ export default function TripDetails() {
   };
 
   const handleEdit = () => {
-    navigate(`/planner?destination=${encodeURIComponent(trip.destination.name)}&budget=${numericBudget}&travelers=${trip.travelers}`);
+    const destName = trip?.destination?.name ?? "Unknown Destination";
+    navigate(`/planner?destination=${encodeURIComponent(destName)}&budget=${numericBudget}&travelers=${trip?.travelers ?? 2}`);
   };
 
   const now = new Date();
@@ -413,10 +416,10 @@ export default function TripDetails() {
             <Card className="border border-border shadow-lg p-8 mb-8 bg-card text-card-foreground">
               <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
                 <div>
-                  <h2 className="text-4xl font-bold text-foreground mb-2">Trip to {trip.destination.name}</h2>
+                  <h2 className="text-4xl font-bold text-foreground mb-2">Trip to {trip?.destination?.name ?? "Unknown Destination"}</h2>
                   <p className="text-lg text-muted-foreground flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-teal-600" />
-                    {trip.destination.name}, {trip.destination.country || ""}
+                    <MapPin className="w-5 h-5 text-teal-650" />
+                    {trip?.destination?.name ?? "Unknown Destination"}, {trip?.destination?.country || ""}
                   </p>
                 </div>
                 <span className={`px-4 py-2 rounded-full font-semibold ${
@@ -590,15 +593,21 @@ export default function TripDetails() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Button
                 variant="outline"
-                className="border-border text-foreground hover:bg-muted py-6"
-                onClick={() => navigate(`/budget-calculator?destination=${encodeURIComponent(trip.destination.name)}&duration=${durationDays}&travelers=${trip.travelers}`)}
+                className="border-border text-foreground hover:bg-muted py-6 animate-in duration-200"
+                onClick={() => {
+                  const destName = trip?.destination?.name ?? "Unknown Destination";
+                  navigate(`/budget-calculator?destination=${encodeURIComponent(destName)}&duration=${durationDays}&travelers=${trip?.travelers ?? 2}`);
+                }}
               >
                 Recalculate Budget
               </Button>
               <Button
                 variant="outline"
-                className="border-border text-foreground hover:bg-muted py-6"
-                onClick={() => navigate(`/route-planner?end=${encodeURIComponent(trip.destination.name)}`)}
+                className="border-border text-foreground hover:bg-muted py-6 animate-in duration-200"
+                onClick={() => {
+                  const destName = trip?.destination?.name ?? "Unknown Destination";
+                  navigate(`/route-planner?end=${encodeURIComponent(destName)}`);
+                }}
               >
                 View Route
               </Button>

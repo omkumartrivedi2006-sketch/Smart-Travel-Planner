@@ -13,18 +13,23 @@ export async function getDestinations(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { search, country, category, maxCost, sort, page, limit } = req.query;
+    const { search, country, category, maxCost, maxBudget, sort, page, limit } = req.query;
 
     const queryFilter: any = {};
 
-    // 1. Search (matches name, country, or category)
+    // 1. Search (matches name, country, state, city, category, attractions, or famousFor)
     if (search) {
       const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const searchRegex = new RegExp(escapedSearch, "i");
       queryFilter.$or = [
         { name: searchRegex },
         { country: searchRegex },
+        { state: searchRegex },
+        { city: searchRegex },
         { category: searchRegex },
+        { categories: searchRegex },
+        { topAttractions: searchRegex },
+        { famousFor: searchRegex },
       ];
     }
 
@@ -39,15 +44,21 @@ export async function getDestinations(
       queryFilter.$or = [
         ...(queryFilter.$or || []),
         { category: new RegExp(`^${escapedCategory}$`, "i") },
-        { categories: { $elemMatch: { $regex: new RegExp(escapedCategory, "i") } } },
+        { categories: search ? new RegExp(escapedCategory, "i") : escapedCategory },
       ];
     }
-    if (maxCost) {
-      const costLimit = Number(maxCost);
+    
+    const budgetLimitVal = maxBudget || maxCost;
+    if (budgetLimitVal) {
+      const costLimit = Number(budgetLimitVal);
       if (isNaN(costLimit)) {
-        throw new BadRequestError("maxCost must be a valid number");
+        throw new BadRequestError("maxBudget or maxCost must be a valid number");
       }
-      queryFilter.averageCost = { $lte: costLimit };
+      queryFilter.$or = [
+        ...(queryFilter.$or || []),
+        { averageBudget: { $lte: costLimit } },
+        { averageCost: { $lte: costLimit } },
+      ];
     }
 
     // 3. Sorting
@@ -58,7 +69,7 @@ export async function getDestinations(
       const field = isDesc ? sortStr.substring(1) : sortStr;
       
       // Allow sorting only on specific safe fields
-      const allowedFields = ["name", "averageCost", "rating", "createdAt"];
+      const allowedFields = ["name", "averageCost", "averageBudget", "rating", "createdAt"];
       if (allowedFields.includes(field)) {
         sortObj[field] = isDesc ? -1 : 1;
       } else {

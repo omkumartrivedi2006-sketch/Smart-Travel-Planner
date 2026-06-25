@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { ChevronRight, Check, Sun, Moon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -21,7 +21,7 @@ export default function TripPlanner() {
   const [destinationId, setDestinationId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [budget, setBudget] = useState("2500");
+  const [budget, setBudget] = useState("7500");
   const [budgetLevel, setBudgetLevel] = useState("Mid-range");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [travelers, setTravelers] = useState("2");
@@ -29,6 +29,97 @@ export default function TripPlanner() {
   const [accommodation, setAccommodation] = useState("Hotel");
   const [destinationsList, setDestinationsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Auto-suggestion state
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
+  const [debouncedDestQuery, setDebouncedDestQuery] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsTyping(true);
+    const handler = setTimeout(() => {
+      setDebouncedDestQuery(destination);
+      setIsTyping(false);
+    }, 200);
+    return () => clearTimeout(handler);
+  }, [destination]);
+
+  const filteredSuggestions = useMemo(() => {
+    const q = debouncedDestQuery.trim().toLowerCase();
+    if (!q) return [];
+    
+    const exactMatch = destinationsList.find(d => d.name.toLowerCase() === q);
+    if (exactMatch && exactMatch._id === destinationId) return [];
+
+    return destinationsList.filter((d) => {
+      const matchesName = d.name.toLowerCase().includes(q);
+      const matchesCountry = d.country.toLowerCase().includes(q);
+      const matchesState = d.state ? d.state.toLowerCase().includes(q) : false;
+      const matchesCity = d.city ? d.city.toLowerCase().includes(q) : false;
+      return matchesName || matchesCountry || matchesState || matchesCity;
+    }).slice(0, 8);
+  }, [debouncedDestQuery, destinationsList, destinationId]);
+
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return <span>{text}</span>;
+    const parts = text.split(new RegExp(`(${query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")})`, "gi"));
+    return (
+      <span>
+        {parts.map((part, index) => 
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={index} className="bg-teal-500/20 text-teal-900 font-bold dark:text-teal-100 rounded-sm px-0.5">
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </span>
+    );
+  };
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || filteredSuggestions.length === 0) return;
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSuggestionIndex((prev) => (prev + 1) % filteredSuggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSuggestionIndex((prev) => (prev - 1 + filteredSuggestions.length) % filteredSuggestions.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (suggestionIndex >= 0 && suggestionIndex < filteredSuggestions.length) {
+        const item = filteredSuggestions[suggestionIndex];
+        setDestination(item.name);
+        setDestinationId(item._id);
+        setShowSuggestions(false);
+        setSuggestionIndex(-1);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setSuggestionIndex(-1);
+    }
+  };
+
+  const handleSelect = (item: any) => {
+    setDestination(item.name);
+    setDestinationId(item._id);
+    setShowSuggestions(false);
+    setSuggestionIndex(-1);
+  };
 
   // Fetch destinations and parse URL search parameters on mount
   useEffect(() => {
@@ -229,33 +320,90 @@ export default function TripPlanner() {
                   <h2 className="text-2xl font-bold text-card-foreground mb-2">Select Destination</h2>
                   <p className="text-muted-foreground mb-4">Where would you like to go?</p>
                 </div>
-                <Input
-                  placeholder="Enter destination name..."
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="w-full"
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  {destinationsList.slice(0, 4).map((dest) => {
-                    const isSelected = destinationId === dest._id;
-                    return (
-                      <Card
-                        key={dest._id}
-                        className={`border shadow-md p-4 cursor-pointer transition-all flex items-center justify-between ${
-                          isSelected
-                            ? "border-teal-500 bg-teal-500/10"
-                            : "border-border hover:border-muted-foreground/40 hover:shadow-lg bg-card"
-                        }`}
-                        onClick={() => {
-                          setDestination(dest.name);
-                          setDestinationId(dest._id);
-                        }}
-                      >
-                        <p className="font-semibold text-card-foreground">{dest.name}</p>
-                        {isSelected && <Check className="w-5 h-5 text-teal-600" />}
-                      </Card>
-                    );
-                  })}
+                <div className="relative" ref={selectRef}>
+                  <Input
+                    placeholder="Enter destination name, city, state or country..."
+                    value={destination}
+                    onChange={(e) => {
+                      setDestination(e.target.value);
+                      setShowSuggestions(true);
+                      setSuggestionIndex(-1);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full h-12 text-base pl-4"
+                  />
+                  {showSuggestions && destination.trim().length >= 1 && (
+                    <div className="absolute left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden max-h-72 overflow-y-auto divide-y divide-border animate-in fade-in slide-in-from-top-1 duration-200">
+                      {filteredSuggestions.length > 0 ? (
+                        filteredSuggestions.map((item, idx) => {
+                          const isSelected = idx === suggestionIndex;
+                          const stateCountry = item.state ? `${item.state}, ${item.country}` : item.country;
+                          return (
+                            <div
+                              key={item._id}
+                              onClick={() => handleSelect(item)}
+                              onMouseEnter={() => setSuggestionIndex(idx)}
+                              className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                                isSelected ? "bg-teal-500/10 text-teal-800 dark:text-teal-400 font-medium" : "hover:bg-muted"
+                              }`}
+                            >
+                              <img
+                                src={item.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e"}
+                                alt={item.name}
+                                className="w-10 h-10 object-cover rounded-lg shrink-0 border border-border"
+                                onError={(e) => {
+                                  e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
+                                }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-card-foreground text-sm truncate">
+                                  {highlightText(item.name, debouncedDestQuery)}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {highlightText(stateCountry, debouncedDestQuery)}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        !isTyping && (
+                          <div className="p-4 text-center text-sm text-muted-foreground font-semibold flex items-center justify-center gap-2">
+                            <span className="text-lg">🔍</span> No destinations found
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Popular Destinations Quick Select */}
+                <div>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Popular Destinations</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {destinationsList.slice(0, 4).map((dest) => {
+                      const isSelected = destinationId === dest._id;
+                      return (
+                        <Card
+                          key={dest._id}
+                          className={`border shadow-sm p-4 cursor-pointer transition-all flex items-center justify-between ${
+                            isSelected
+                              ? "border-teal-500 bg-teal-500/10"
+                              : "border-border hover:border-muted-foreground/40 hover:shadow-md bg-card"
+                          }`}
+                          onClick={() => {
+                            setDestination(dest.name);
+                            setDestinationId(dest._id);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          <p className="font-semibold text-card-foreground text-sm">{dest.name}</p>
+                          {isSelected && <Check className="w-4 h-4 text-teal-600" />}
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -301,9 +449,9 @@ export default function TripPlanner() {
                 />
                 <div className="grid grid-cols-3 gap-4">
                   {[
-                    { label: "Budget", def: "1200" },
-                    { label: "Mid-range", def: "2500" },
-                    { label: "Premium", def: "5000" },
+                    { label: "Budget", def: "3000" },
+                    { label: "Mid-range", def: "7500" },
+                    { label: "Premium", def: "15000" },
                   ].map((tier) => {
                     const isSelected = budgetLevel === tier.label;
                     return (

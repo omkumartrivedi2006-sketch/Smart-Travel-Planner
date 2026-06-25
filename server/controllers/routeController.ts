@@ -178,27 +178,27 @@ export async function calculateRoute(
       }
     }
 
-    // Cost estimation based on distance
-    let costPerKm = 0.15; // USD/km
-    let baseCost = 0; // USD
+    // Cost estimation based on distance (in INR)
+    let costPerKm = 12; // INR/km (car default)
+    let baseCost = 1000; // INR
     
     switch (modeOfTransport) {
       case "flight":
-        costPerKm = 0.12;
-        baseCost = 100;
+        costPerKm = 10;
+        baseCost = 5000;
         break;
       case "train":
-        costPerKm = 0.06;
-        baseCost = 15;
+        costPerKm = 2;
+        baseCost = 500;
         break;
       case "car":
-        costPerKm = 0.15;
-        baseCost = 10;
+        costPerKm = 12;
+        baseCost = 1000;
         break;
     }
 
     const estimatedCost = baseCost + (costPerKm * distanceKm);
-    const finalCost = Math.round(estimatedCost * 100) / 100;
+    const finalCost = Math.round(estimatedCost);
     const finalDurationHours = Math.round(durationHours * 100) / 100;
 
     res.status(200).json({

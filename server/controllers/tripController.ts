@@ -198,11 +198,14 @@ export async function getTrips(
       .populate("budget")
       .sort("-createdAt");
 
+    // Filter out trips where populated destination is null (e.g. destination was deleted)
+    const validTrips = trips.filter(trip => trip.destination !== null);
+
     res.status(200).json({
       status: "success",
-      results: trips.length,
+      results: validTrips.length,
       data: {
-        trips,
+        trips: validTrips,
       },
     });
   } catch (error) {
@@ -227,8 +230,8 @@ export async function getTripById(
       .populate("destination")
       .populate("budget");
 
-    if (!trip) {
-      throw new NotFoundError("Trip not found");
+    if (!trip || !trip.destination) {
+      throw new NotFoundError("Trip not found or destination was deleted");
     }
 
     // Verify ownership

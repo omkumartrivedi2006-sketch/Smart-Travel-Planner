@@ -169,14 +169,35 @@ async function runTests() {
     const validDest = {
       body: {
         name: "Goa",
-        description: "Sunny beaches in western India",
+        city: "Panaji",
+        state: "Goa",
         country: "India",
+        continent: "Asia",
         category: "Beach",
+        shortDescription: "Sunny beaches in western India",
+        fullDescription: "Detailed description of Goa's pristine beaches and lively cultural spots.",
+        bestTimeToVisit: "November - February",
+        averageBudget: 3500,
+        averageCost: 3500,
+        durationRecommendation: "3-5 Days",
+        weatherInformation: "Tropical warm weather",
+        famousFor: "Pristine beaches, water sports, and Portuguese architecture",
+        topAttractions: ["Baga Beach", "Aguada Fort"],
+        activities: ["Swimming", "Sunbathing"],
+        localCuisine: ["Goan Fish Curry", "Bebinca"],
+        transportationOptions: ["Scooter Rental", "Local Taxi"],
+        nearestAirport: "Dabolim Airport",
+        nearestRailwayStation: "Madgaon Railway Station",
+        languagesSpoken: ["Konkani", "English", "Hindi"],
+        currency: "Indian Rupee (INR)",
+        safetyInformation: "Always swim in designated zones under lifeguard supervision.",
+        travelTips: "Carry light sunscreen and stay hydrated.",
         latitude: 15.2993,
         longitude: 74.1240,
-        averageCost: 45,
-        activities: ["Swimming", "Sunbathing"],
-        bestTimeToVisit: "November - February"
+        images: ["https://images.unsplash.com/photo-1512343879784-a960bf40e7f2"],
+        image: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2",
+        rating: 4.6,
+        popularPlaces: ["Baga Beach", "Aguada Fort"]
       }
     };
     createDestinationSchema.parse(validDest);
@@ -191,7 +212,8 @@ async function runTests() {
     name: "Paris",
     country: "France",
     category: "City",
-    averageCost: 100, // Cost factor = 2.0
+    averageBudget: 12000,
+    averageCost: 12000,
     latitude: 48.8566,
     longitude: 2.3522,
   };
@@ -227,13 +249,13 @@ async function runTests() {
   });
 
   if (budget2.totalEstimate > budget1.totalEstimate) {
-    console.log(`✅ Luxury preference estimated correctly higher: ${budget2.totalEstimate} USD vs ${budget1.totalEstimate} USD`);
+    console.log(`✅ Luxury preference estimated correctly higher: ${budget2.totalEstimate} INR vs ${budget1.totalEstimate} INR`);
   } else {
     console.error("❌ Luxury costing failed", budget1, budget2);
   }
 
   if (budget3.totalEstimate > budget1.totalEstimate) {
-    console.log(`✅ More travelers estimated correctly higher: ${budget3.totalEstimate} USD vs ${budget1.totalEstimate} USD`);
+    console.log(`✅ More travelers estimated correctly higher: ${budget3.totalEstimate} INR vs ${budget1.totalEstimate} INR`);
   } else {
     console.error("❌ Traveler weight costing failed", budget1, budget3);
   }
