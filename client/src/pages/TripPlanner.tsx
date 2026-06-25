@@ -7,10 +7,13 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLocationData } from "@/contexts/LocationContext";
+import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 export default function TripPlanner() {
   const [, navigate] = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { location: userLoc } = useLocationData();
   const [step, setStep] = useState(1);
 
   // Form states
@@ -146,6 +149,8 @@ export default function TripPlanner() {
           hotelPreference: hotelPref,
           transportPreference: transPref,
           travelType: travelerType.toLowerCase(),
+          originLatitude: userLoc?.latitude,
+          originLongitude: userLoc?.longitude,
         }),
       });
 
@@ -171,17 +176,20 @@ export default function TripPlanner() {
             </Button>
             <h1 className="text-3xl font-bold text-foreground">Plan Your Trip</h1>
           </div>
-          {toggleTheme && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="text-foreground hover:bg-muted"
-              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            >
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <LocationNavbarButton />
+            {toggleTheme && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-foreground hover:bg-muted"
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+              >
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -195,16 +203,16 @@ export default function TripPlanner() {
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
                       s <= step
-                        ? "bg-teal-600 text-white"
-                        : "bg-slate-200 text-slate-600"
+                        ? "bg-teal-600 text-white shadow-md"
+                        : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {s}
                   </div>
                   {s < 6 && (
                     <div
-                      className={`h-1 w-12 mx-2 transition-all ${
-                        s < step ? "bg-teal-600" : "bg-slate-200"
+                      className={`h-1 w-12 mx-2 transition-all rounded-full ${
+                        s < step ? "bg-teal-600" : "bg-muted"
                       }`}
                     />
                   )}
@@ -214,12 +222,12 @@ export default function TripPlanner() {
           </div>
 
           {/* Form Steps */}
-          <Card className="border-0 shadow-xl p-8 bg-white">
+          <Card className="border border-border shadow-xl p-8 bg-card">
             {step === 1 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Select Destination</h2>
-                  <p className="text-slate-600 mb-4">Where would you like to go?</p>
+                  <h2 className="text-2xl font-bold text-card-foreground mb-2">Select Destination</h2>
+                  <p className="text-muted-foreground mb-4">Where would you like to go?</p>
                 </div>
                 <Input
                   placeholder="Enter destination name..."
@@ -235,15 +243,15 @@ export default function TripPlanner() {
                         key={dest._id}
                         className={`border shadow-md p-4 cursor-pointer transition-all flex items-center justify-between ${
                           isSelected
-                            ? "border-teal-500 bg-teal-50/50"
-                            : "border-slate-100 hover:border-slate-300 hover:shadow-lg"
+                            ? "border-teal-500 bg-teal-500/10"
+                            : "border-border hover:border-muted-foreground/40 hover:shadow-lg bg-card"
                         }`}
                         onClick={() => {
                           setDestination(dest.name);
                           setDestinationId(dest._id);
                         }}
                       >
-                        <p className="font-semibold text-slate-900">{dest.name}</p>
+                        <p className="font-semibold text-card-foreground">{dest.name}</p>
                         {isSelected && <Check className="w-5 h-5 text-teal-600" />}
                       </Card>
                     );
@@ -255,12 +263,12 @@ export default function TripPlanner() {
             {step === 2 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Travel Dates</h2>
-                  <p className="text-slate-600 mb-4">When do you want to travel?</p>
+                  <h2 className="text-2xl font-bold text-card-foreground mb-2">Travel Dates</h2>
+                  <p className="text-muted-foreground mb-4">When do you want to travel?</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Start Date</label>
+                    <label className="block text-sm font-medium text-foreground/80 mb-2">Start Date</label>
                     <Input
                       type="date"
                       value={startDate}
@@ -268,7 +276,7 @@ export default function TripPlanner() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">End Date</label>
+                    <label className="block text-sm font-medium text-foreground/80 mb-2">End Date</label>
                     <Input
                       type="date"
                       value={endDate}
@@ -282,8 +290,8 @@ export default function TripPlanner() {
             {step === 3 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Budget</h2>
-                  <p className="text-slate-600 mb-4">What's your total budget?</p>
+                  <h2 className="text-2xl font-bold text-card-foreground mb-2">Budget</h2>
+                  <p className="text-muted-foreground mb-4">What's your total budget?</p>
                 </div>
                 <Input
                   type="number"
@@ -303,16 +311,16 @@ export default function TripPlanner() {
                         key={tier.label}
                         className={`border shadow-md p-4 cursor-pointer text-center transition-all ${
                           isSelected
-                            ? "border-teal-500 bg-teal-50/50"
-                            : "border-slate-100 hover:border-slate-300 hover:shadow-lg"
+                            ? "border-teal-500 bg-teal-500/10"
+                            : "border-border hover:border-muted-foreground/40 hover:shadow-lg bg-card"
                         }`}
                         onClick={() => {
                           setBudgetLevel(tier.label);
                           setBudget(tier.def);
                         }}
                       >
-                        <p className="font-semibold text-slate-900">{tier.label}</p>
-                        <p className="text-xs text-slate-600 mt-1">₹{tier.def}</p>
+                        <p className="font-semibold text-card-foreground">{tier.label}</p>
+                        <p className="text-xs text-muted-foreground mt-1">₹{tier.def}</p>
                       </Card>
                     );
                   })}
@@ -323,8 +331,8 @@ export default function TripPlanner() {
             {step === 4 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Interests</h2>
-                  <p className="text-slate-600 mb-4">What are you interested in?</p>
+                  <h2 className="text-2xl font-bold text-card-foreground mb-2">Interests</h2>
+                  <p className="text-muted-foreground mb-4">What are you interested in?</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {["Adventure", "Food", "Culture", "Shopping", "Beach", "Nature"].map((interest) => {
@@ -334,17 +342,17 @@ export default function TripPlanner() {
                         key={interest}
                         className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all ${
                           isChecked
-                            ? "border-teal-500 bg-teal-50/30"
-                            : "border-slate-200 hover:bg-slate-50"
+                            ? "border-teal-500 bg-teal-500/10"
+                            : "border-border hover:bg-muted"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleInterest(interest)}
-                          className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                          className="w-4 h-4 text-teal-600 rounded border-border focus:ring-teal-500"
                         />
-                        <span className="text-slate-900 font-medium">{interest}</span>
+                        <span className="text-foreground font-medium">{interest}</span>
                       </label>
                     );
                   })}
@@ -355,8 +363,8 @@ export default function TripPlanner() {
             {step === 5 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Travelers</h2>
-                  <p className="text-slate-600 mb-4">How many people are traveling?</p>
+                  <h2 className="text-2xl font-bold text-card-foreground mb-2">Travelers</h2>
+                  <p className="text-muted-foreground mb-4">How many people are traveling?</p>
                 </div>
                 <Input
                   type="number"
@@ -372,8 +380,8 @@ export default function TripPlanner() {
                         key={type}
                         className={`border shadow-md p-4 cursor-pointer transition-all flex items-center justify-between ${
                           isSelected
-                            ? "border-teal-500 bg-teal-50/50"
-                            : "border-slate-100 hover:border-slate-300 hover:shadow-lg"
+                            ? "border-teal-500 bg-teal-500/10"
+                            : "border-border hover:border-muted-foreground/40 hover:shadow-lg bg-card"
                         }`}
                         onClick={() => {
                           setTravelerType(type);
@@ -383,7 +391,7 @@ export default function TripPlanner() {
                           else if (type === "Friends") setTravelers("5");
                         }}
                       >
-                        <p className="font-semibold text-slate-900">{type}</p>
+                        <p className="font-semibold text-card-foreground">{type}</p>
                         {isSelected && <Check className="w-5 h-5 text-teal-600" />}
                       </Card>
                     );
@@ -395,8 +403,8 @@ export default function TripPlanner() {
             {step === 6 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Accommodation</h2>
-                  <p className="text-slate-600 mb-4">What type of accommodation?</p>
+                  <h2 className="text-2xl font-bold text-card-foreground mb-2">Accommodation</h2>
+                  <p className="text-muted-foreground mb-4">What type of accommodation?</p>
                 </div>
                 <div className="space-y-3">
                   {["Hotel", "Hostel", "Airbnb", "Resort", "Guesthouse"].map((type) => {
@@ -406,8 +414,8 @@ export default function TripPlanner() {
                         key={type}
                         className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all ${
                           isSelected
-                            ? "border-teal-500 bg-teal-50/30"
-                            : "border-slate-200 hover:bg-slate-50"
+                            ? "border-teal-500 bg-teal-500/10"
+                            : "border-border hover:bg-muted"
                         }`}
                       >
                         <input
@@ -415,9 +423,9 @@ export default function TripPlanner() {
                           name="accommodation"
                           checked={isSelected}
                           onChange={() => setAccommodation(type)}
-                          className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500"
+                          className="w-4 h-4 text-teal-600 border-border focus:ring-teal-500"
                         />
-                        <span className="text-slate-900 font-medium">{type}</span>
+                        <span className="text-foreground font-medium">{type}</span>
                       </label>
                     );
                   })}
@@ -426,12 +434,12 @@ export default function TripPlanner() {
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex gap-4 mt-8 pt-8 border-t border-slate-200">
+            <div className="flex gap-4 mt-8 pt-8 border-t border-border">
               <Button
                 variant="outline"
                 onClick={() => setStep(Math.max(1, step - 1))}
                 disabled={step === 1}
-                className="flex-1 border-slate-300 hover:bg-slate-50 text-slate-700"
+                className="flex-1 border-border hover:bg-muted text-foreground"
               >
                 Previous
               </Button>
@@ -453,24 +461,24 @@ export default function TripPlanner() {
             </div>
 
             {/* Quick Actions */}
-            <div className="mt-8 pt-8 border-t border-slate-200 grid grid-cols-3 gap-4">
+            <div className="mt-8 pt-8 border-t border-border grid grid-cols-3 gap-4">
               <Button
                 variant="outline"
-                className="border-slate-300 text-slate-800 hover:bg-slate-50 text-xs px-1 sm:text-sm"
+                className="border-border text-foreground hover:bg-muted text-xs px-1 sm:text-sm"
                 onClick={() => navigate("/ai-recommendations")}
               >
                 Get AI Help
               </Button>
               <Button
                 variant="outline"
-                className="border-slate-300 text-slate-800 hover:bg-slate-50 text-xs px-1 sm:text-sm"
+                className="border-border text-foreground hover:bg-muted text-xs px-1 sm:text-sm"
                 onClick={() => navigate(`/budget-calculator?total=${budget}&duration=7`)}
               >
                 Calculate Budget
               </Button>
               <Button
                 variant="outline"
-                className="border-slate-300 text-slate-800 hover:bg-slate-50 text-xs px-1 sm:text-sm"
+                className="border-border text-foreground hover:bg-muted text-xs px-1 sm:text-sm"
                 onClick={() => navigate(`/weather-forecast?destination=${encodeURIComponent(destination || "Bali")}`)}
               >
                 Check Weather

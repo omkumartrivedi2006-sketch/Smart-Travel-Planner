@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation, useParams } from "wouter";
-import { Star, MapPin, Heart, Compass, Sun, Moon, Utensils, Hotel, Map } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Star, MapPin, Heart, Compass, Sun, Moon, Utensils, Hotel, Map, Navigation } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
 import { MapView } from "@/components/Map";
+import { useLocationData } from "@/contexts/LocationContext";
+import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 interface Destination {
   id: string;
@@ -91,6 +93,84 @@ export default function DestinationDetails() {
   const [activeCategory, setActiveCategory] = useState("Attraction");
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { location: userLoc } = useLocationData();
+  const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
+  const [routeInfo, setRouteInfo] = useState<{
+    distance: string;
+    duration: string;
+    cost: string;
+    mode: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!userLoc || !destination) return;
+
+    const currentLoc = userLoc;
+    const currentDest = destination;
+
+    async function fetchRoute() {
+      try {
+        const lat1 = currentLoc.latitude;
+        const lon1 = currentLoc.longitude;
+        const lat2 = currentDest.latitude;
+        const lon2 = currentDest.longitude;
+
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const dist = 6371 * c;
+
+        let transMode = "car";
+        if (dist > 800) {
+          transMode = "flight";
+        } else if (dist > 300) {
+          transMode = "train";
+        }
+
+        const res = await apiFetch("/api/routes/calculate", {
+          method: "POST",
+          body: JSON.stringify({
+            originLatitude: currentLoc.latitude,
+            originLongitude: currentLoc.longitude,
+            destinationId: currentDest.id,
+            modeOfTransport: transMode,
+          }),
+        });
+
+        if (res && res.data) {
+          const d = res.data;
+          setRouteCoords(d.routeCoordinates || []);
+          
+          let durationText = "";
+          if (d.durationHours >= 1) {
+            const hrs = Math.floor(d.durationHours);
+            const mins = Math.round((d.durationHours - hrs) * 60);
+            durationText = `${hrs}h ${mins}m`;
+          } else {
+            durationText = `${Math.round(d.durationHours * 60)}m`;
+          }
+
+          setRouteInfo({
+            distance: `${d.distanceKm.toFixed(0)} km`,
+            duration: durationText,
+            cost: `₹${Math.round(d.estimatedCost * 80).toLocaleString()}`,
+            mode: transMode === "car" ? "Driving" : transMode === "train" ? "Train" : "Flight",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to calculate route to destination:", err);
+      }
+    }
+
+    fetchRoute();
+  }, [userLoc, destination]);
 
   useEffect(() => {
     if (!id) return;
@@ -232,17 +312,20 @@ export default function DestinationDetails() {
             </Button>
             <h1 className="text-3xl font-bold text-foreground">Destination Details</h1>
           </div>
-          {toggleTheme && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="text-foreground hover:bg-muted"
-              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            >
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <LocationNavbarButton />
+            {toggleTheme && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-foreground hover:bg-muted"
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+              >
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -308,6 +391,34 @@ export default function DestinationDetails() {
               </p>
             </div>
 
+            {/* Live Location Travel Calculation Card */}
+            {userLoc && routeInfo && (
+              <Card className="border border-teal-500/20 bg-teal-500/5 dark:bg-teal-400/5 shadow-md p-6 mb-8 rounded-xl animate-in slide-in-from-bottom duration-300">
+                <h3 className="text-lg font-bold text-teal-800 dark:text-teal-400 flex items-center gap-2 mb-4">
+                  <Navigation className="w-5 h-5 animate-pulse" />
+                  Travel Info from {userLoc.city}
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                  <div className="bg-card p-3 rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Distance</p>
+                    <p className="text-xl font-bold text-foreground">{routeInfo.distance}</p>
+                  </div>
+                  <div className="bg-card p-3 rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Travel Time</p>
+                    <p className="text-xl font-bold text-foreground">{routeInfo.duration}</p>
+                  </div>
+                  <div className="bg-card p-3 rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Estimated Cost</p>
+                    <p className="text-xl font-bold text-foreground text-emerald-600 dark:text-emerald-400">{routeInfo.cost}</p>
+                  </div>
+                  <div className="bg-card p-3 rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Recommended Mode</p>
+                    <p className="text-xl font-bold text-foreground">{routeInfo.mode}</p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Local Sights Map */}
             <div className="mb-8">
               <h3 className="text-2xl font-bold text-foreground mb-4">Location Map</h3>
@@ -316,6 +427,12 @@ export default function DestinationDetails() {
                   center={{ lat: destination.latitude, lng: destination.longitude }}
                   zoom={13}
                   markers={[
+                    ...(userLoc ? [{
+                      lat: userLoc.latitude,
+                      lng: userLoc.longitude,
+                      title: `My Location (${userLoc.city})`,
+                      category: "Start",
+                    }] : []),
                     {
                       lat: destination.latitude,
                       lng: destination.longitude,
@@ -331,6 +448,7 @@ export default function DestinationDetails() {
                       rating: p.rating,
                     })),
                   ]}
+                  routeCoordinates={routeCoords}
                   className="w-full h-full"
                 />
               </Card>

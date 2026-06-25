@@ -2,12 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { DollarSign, Download, TrendingUp, Sun, Moon } from "lucide-react";
+import { IndianRupee, Download, TrendingUp, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLocationData } from "@/contexts/LocationContext";
+import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 interface BudgetItem {
   category: string;
@@ -18,6 +20,7 @@ interface BudgetItem {
 export default function BudgetCalculator() {
   const [, navigate] = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { location: userLoc } = useLocationData();
 
   // Input states
   const [destinationsList, setDestinationsList] = useState<any[]>([]);
@@ -73,6 +76,13 @@ export default function BudgetCalculator() {
     if (travelersParam) setTravelers(Number(travelersParam));
   }, []);
 
+  // Recalculate when user location becomes available or changes
+  useEffect(() => {
+    if (selectedDestId) {
+      calculateBackendBudget(selectedDestId, duration, travelers, accommodationType, foodPreference, transportPreference);
+    }
+  }, [userLoc]);
+
   const calculateBackendBudget = async (
     destId: string,
     days: number,
@@ -116,6 +126,8 @@ export default function BudgetCalculator() {
           hotelPreference: hotelPref,
           transportPreference: transPrefMapped,
           travelType: people === 1 ? "solo" : people === 2 ? "couple" : "friends",
+          originLatitude: userLoc?.latitude,
+          originLongitude: userLoc?.longitude,
         }),
       });
 
@@ -185,21 +197,24 @@ export default function BudgetCalculator() {
               ← Back to Home
             </Button>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <DollarSign className="w-8 h-8 text-green-600" />
+              <IndianRupee className="w-8 h-8 text-green-600" />
               Smart Budget Calculator
             </h1>
           </div>
-          {toggleTheme && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="text-foreground hover:bg-muted"
-              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            >
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <LocationNavbarButton />
+            {toggleTheme && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-foreground hover:bg-muted"
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+              >
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

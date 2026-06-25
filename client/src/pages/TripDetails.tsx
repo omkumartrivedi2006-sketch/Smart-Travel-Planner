@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation, useParams } from "wouter";
-import { Calendar, DollarSign, MapPin, Download, Share2, Edit2, ShieldAlert, Loader2, Sun, Moon } from "lucide-react";
+import { Calendar, IndianRupee, MapPin, Download, Share2, Edit2, ShieldAlert, Loader2, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { jsPDF } from "jspdf";
 
 interface Trip {
   _id: string;
@@ -51,6 +52,7 @@ export default function TripDetails() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [weatherForecast, setWeatherForecast] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     async function loadTripDetails() {
@@ -126,8 +128,244 @@ export default function TripDetails() {
     amountStr: `₹${Math.round(item.amount).toLocaleString()}`,
   }));
 
-  const handleExport = () => {
-    toast.success("Itinerary successfully exported as PDF!");
+  const handleExport = async () => {
+    if (!trip) return;
+    setIsExporting(true);
+    toast.info("Generating PDF, please wait...");
+    
+    try {
+      // Create new jsPDF instance (A4 size: 210 x 297 mm)
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      let yPos = 20;
+
+      // Draw header and footer
+      const drawHeaderFooter = (pageNum: number) => {
+        // Header line & text
+        doc.setDrawColor(13, 148, 136); // Teal primary
+        doc.setLineWidth(0.8);
+        doc.line(margin, 15, pageWidth - margin, 15);
+        
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(13, 148, 136);
+        doc.text("SMART TRAVEL PLANNER", margin, 12);
+        
+        // Footer line & text
+        doc.setDrawColor(226, 232, 240); // Slate-200
+        doc.setLineWidth(0.5);
+        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+        
+        doc.setFont("Helvetica", "normal");
+        doc.setTextColor(100, 116, 139); // Slate-500
+        doc.text(`Generated Plan - ${new Date().toLocaleDateString("en-US", { dateStyle: "medium" })}`, margin, pageHeight - 10);
+        doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, { align: "right" });
+      };
+
+      // Set up page 1
+      let currentPage = 1;
+      drawHeaderFooter(currentPage);
+
+      // Document Title
+      yPos = 28;
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); // Slate-900
+      doc.text("TRIP ITINERARY", margin, yPos);
+
+      // Destination Name
+      yPos += 9;
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(15);
+      doc.setTextColor(13, 148, 136); // Teal
+      doc.text(`${trip.destination.name.toUpperCase()}, ${trip.destination.country.toUpperCase()}`, margin, yPos);
+
+      // Horizontal separator line
+      yPos += 5;
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+
+      // Summary details block
+      yPos += 10;
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Trip Summary", margin, yPos);
+
+      yPos += 7;
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(51, 65, 85); // Slate-700
+      
+      const startStr = new Date(trip.startDate).toLocaleDateString("en-US", { dateStyle: "medium" });
+      const endStr = new Date(trip.endDate).toLocaleDateString("en-US", { dateStyle: "medium" });
+      
+      doc.text(`Dates: ${startStr} - ${endStr} (${durationDays} Days)`, margin, yPos);
+      doc.text(`Travelers: ${trip.travelers || 1} Person(s) (${trip.travelType || "Solo"})`, margin + 85, yPos);
+      
+      yPos += 5.5;
+      doc.text(`Hotel Rating: ${trip.hotelPreference || "Mid-range"}`, margin, yPos);
+      doc.text(`Transport Preference: ${trip.transportPreference || "Car"}`, margin + 85, yPos);
+
+      // Budget Breakdown section
+      yPos += 11;
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Estimated Budget Details (INR)", margin, yPos);
+
+      // Draw budget breakdown card
+      yPos += 6;
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(241, 245, 249); // slate-100
+      doc.setLineWidth(0.3);
+      doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 38, 2, 2, "FD");
+
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105); // Slate-600
+
+      const colA = margin + 6;
+      const colB = margin + 86;
+      let textY = yPos + 7;
+
+      doc.text(`Accommodation: INR Rs. ${(trip.budget?.hotelCost || 0).toLocaleString()}`, colA, textY);
+      doc.text(`Food & Dining: INR Rs. ${(trip.budget?.foodCost || 0).toLocaleString()}`, colB, textY);
+
+      textY += 6;
+      doc.text(`Transportation: INR Rs. ${(trip.budget?.transportCost || 0).toLocaleString()}`, colA, textY);
+      doc.text(`Activities & Tours: INR Rs. ${(trip.budget?.activitiesCost || 0).toLocaleString()}`, colB, textY);
+
+      textY += 6;
+      doc.text(`Miscellaneous: INR Rs. ${(trip.budget?.miscellaneousCost || 0).toLocaleString()}`, colA, textY);
+
+      // Total Estimate
+      textY += 9;
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(13, 148, 136); // Teal
+      doc.text(`Total Budget Estimate: INR Rs. ${numericBudget.toLocaleString()}`, colA, textY);
+
+      yPos += 48;
+
+      // Day-wise Itinerary
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Day-by-Day Itinerary", margin, yPos);
+      
+      yPos += 8;
+
+      if (trip.itinerary && trip.itinerary.length > 0) {
+        trip.itinerary.forEach((dayData, index) => {
+          const currentDay = new Date(start);
+          currentDay.setDate(start.getDate() + index);
+          const dayName = currentDay.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+          
+          // Page break check before starting a new Day
+          if (yPos > pageHeight - 40) {
+            doc.addPage();
+            currentPage++;
+            drawHeaderFooter(currentPage);
+            yPos = 25;
+          }
+
+          // Day Header
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(10.5);
+          doc.setTextColor(13, 148, 136);
+          doc.text(`Day ${dayData.day || index + 1} - ${dayName}`, margin, yPos);
+          
+          yPos += 5.5;
+
+          if (dayData.activities && dayData.activities.length > 0) {
+            dayData.activities.forEach((act: any) => {
+              const timeText = act.time || "Flexible";
+              const actName = act.activity || "";
+              const costText = act.cost > 0 ? ` (Est. Cost: INR Rs. ${act.cost})` : "";
+              const actHeader = `${timeText} - ${actName}${costText}`;
+              const desc = act.description || "";
+
+              // Split description text to fit PDF width bounds
+              const splitDesc = doc.splitTextToSize(desc, pageWidth - 2 * margin - 10);
+              
+              // Calculate estimated space required for this activity
+              const requiredHeight = 4.5 + (splitDesc.length * 4) + 3;
+
+              // Page break check for activity block
+              if (yPos > pageHeight - requiredHeight - 15) {
+                doc.addPage();
+                currentPage++;
+                drawHeaderFooter(currentPage);
+                yPos = 25;
+
+                // Continuity day header
+                doc.setFont("Helvetica", "bold");
+                doc.setFontSize(10.5);
+                doc.setTextColor(13, 148, 136);
+                doc.text(`Day ${dayData.day || index + 1} - ${dayName} (Continued)`, margin, yPos);
+                yPos += 5.5;
+              }
+
+              // Draw time & activity title
+              doc.setFont("Helvetica", "bold");
+              doc.setFontSize(9);
+              doc.setTextColor(51, 65, 85);
+              doc.text(actHeader, margin + 4, yPos);
+
+              // Draw a small vertical indicator line
+              doc.setDrawColor(204, 251, 241); // teal-100
+              doc.setLineWidth(0.6);
+              doc.line(margin + 1, yPos - 3, margin + 1, yPos + splitDesc.length * 4);
+
+              yPos += 4.5;
+
+              // Draw description text
+              doc.setFont("Helvetica", "normal");
+              doc.setFontSize(8.5);
+              doc.setTextColor(100, 116, 139);
+              splitDesc.forEach((line: string) => {
+                doc.text(line, margin + 4, yPos);
+                yPos += 4;
+              });
+
+              yPos += 2; // minor gap between activities
+            });
+          } else {
+            doc.setFont("Helvetica", "italic");
+            doc.setFontSize(9);
+            doc.setTextColor(148, 163, 184); // slate-400
+            doc.text("No activities scheduled for this day.", margin + 4, yPos);
+            yPos += 6;
+          }
+
+          yPos += 5; // spacing between days
+        });
+      } else {
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text("No itinerary activities found for this trip.", margin, yPos);
+      }
+
+      // Download file to device
+      const cleanDestName = trip.destination.name.replace(/\s+/g, "_");
+      doc.save(`Trip_Plan_${cleanDestName}.pdf`);
+      toast.success("Itinerary exported as PDF successfully!");
+    } catch (err: any) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleShare = () => {
@@ -217,9 +455,18 @@ export default function TripDetails() {
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>
-                <Button onClick={handleExport} variant="outline" className="flex-1 border-border text-foreground hover:bg-muted min-w-[100px]">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
+                <Button 
+                  onClick={handleExport} 
+                  variant="outline" 
+                  disabled={isExporting}
+                  className="flex-1 border-border text-foreground hover:bg-muted min-w-[100px]"
+                >
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  {isExporting ? "Exporting..." : "Export"}
                 </Button>
               </div>
             </Card>

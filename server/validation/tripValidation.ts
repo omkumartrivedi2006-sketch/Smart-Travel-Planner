@@ -13,6 +13,8 @@ export const createTripSchema = z.object({
     hotelPreference: z.enum(hotelPreferences).optional().default("mid-range"),
     transportPreference: z.enum(transportPreferences).optional().default("car"),
     travelType: z.enum(travelTypes).optional().default("solo"),
+    originLatitude: z.number().min(-90).max(90).optional(),
+    originLongitude: z.number().min(-180).max(180).optional(),
   }).refine((data) => data.endDate >= data.startDate, {
     message: "End date must be on or after start date",
     path: ["endDate"],

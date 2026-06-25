@@ -9,6 +9,8 @@ import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
 import { WORLD_CITIES, getPopularDestinations, type WorldCity } from "@/data/worldCities";
 import { fuzzySearch, getSuggestions } from "@/lib/fuzzySearch";
+import { useLocationData } from "@/contexts/LocationContext";
+import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +24,22 @@ interface NormalizedDestination {
   image: string;
   description: string;
   source: "db" | "local";
+  latitude?: number;
+  longitude?: number;
+}
+
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 // ─── Category config — UI labels map to lowercase category tags ───────────────
@@ -75,13 +93,13 @@ function getBudgetFromCost(cost: number): "Budget" | "Mid-range" | "Premium" {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-md animate-pulse">
-      <div className="h-48 bg-slate-200 dark:bg-slate-700" />
+    <div className="rounded-xl overflow-hidden bg-card border border-border shadow-sm animate-pulse">
+      <div className="h-48 bg-muted" />
       <div className="p-5 space-y-3">
-        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
-        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
-        <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3" />
-        <div className="h-9 bg-slate-200 dark:bg-slate-700 rounded-lg mt-4" />
+        <div className="h-4 bg-muted rounded w-3/4" />
+        <div className="h-3 bg-muted rounded w-1/2" />
+        <div className="h-3 bg-muted rounded w-2/3" />
+        <div className="h-9 bg-muted rounded-lg mt-4" />
       </div>
     </div>
   );
@@ -98,11 +116,19 @@ function DestinationCard({
   onClick: () => void;
   index: number;
 }) {
+  const { location: userLoc } = useLocationData();
   const [imgError, setImgError] = useState(false);
+
+  const distanceText = useMemo(() => {
+    if (!userLoc || dest.latitude === undefined || dest.longitude === undefined) return null;
+    const dist = calculateDistance(userLoc.latitude, userLoc.longitude, dest.latitude, dest.longitude);
+    return `${Math.round(dist).toLocaleString()} km`;
+  }, [userLoc, dest.latitude, dest.longitude]);
+
   return (
     <div
       onClick={onClick}
-      className="group rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer border border-slate-100 dark:border-slate-700 hover:-translate-y-1"
+      className="group rounded-xl overflow-hidden bg-card text-card-foreground shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-border hover:-translate-y-1"
       style={{ animationDelay: `${index * 60}ms` }}
     >
       <div className="relative h-48 overflow-hidden">
@@ -119,7 +145,7 @@ function DestinationCard({
             return (
               <span
                 key={cat}
-                className="bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm"
+                className="bg-background/90 backdrop-blur-sm text-foreground border border-border text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm"
               >
                 {cf ? `${cf.emoji} ${cf.label}` : cat}
               </span>
@@ -143,21 +169,28 @@ function DestinationCard({
       </div>
       <div className="p-5">
         <div className="flex items-start justify-between mb-1">
-          <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-teal-600 transition-colors">
+          <h4 className="text-lg font-bold text-card-foreground group-hover:text-primary transition-colors">
             {dest.name}
           </h4>
           <div className="flex items-center gap-1 shrink-0 ml-2">
             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{dest.rating.toFixed(1)}</span>
+            <span className="text-sm font-semibold text-card-foreground">{dest.rating.toFixed(1)}</span>
           </div>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1 mb-2">
-          <MapPin className="w-3.5 h-3.5 shrink-0" />
-          {dest.country}
+        <p className="text-sm text-muted-foreground flex items-center justify-between gap-1 mb-2">
+          <span className="flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 shrink-0 text-primary" />
+            {dest.country}
+          </span>
+          {distanceText && (
+            <span className="text-xs font-semibold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-1.5 py-0.5 rounded shrink-0 animate-in fade-in duration-350">
+              📍 {distanceText}
+            </span>
+          )}
         </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-4">{dest.description}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-4">{dest.description}</p>
         <Button
-          className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm transition-all duration-200 hover:shadow-md"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm transition-all duration-200 hover:shadow-md"
           onClick={(e) => {
             e.stopPropagation();
             onClick();
@@ -228,6 +261,8 @@ export default function Destinations() {
             image: d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
             description: d.description || "",
             source: "db" as const,
+            latitude: d.latitude,
+            longitude: d.longitude,
           }));
           setDbDestinations(mapped);
         }
@@ -431,9 +466,9 @@ export default function Destinations() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-teal-950/20 text-foreground transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
             <Button variant="ghost" onClick={() => navigate("/")} className="text-slate-500 hover:text-teal-600 -ml-2 mb-1">
@@ -447,6 +482,7 @@ export default function Destinations() {
             <span className="text-xs text-slate-500 hidden sm:block">
               {allDestinations.length.toLocaleString()}+ destinations
             </span>
+            <LocationNavbarButton />
             {toggleTheme && (
               <Button
                 variant="ghost"
@@ -466,7 +502,7 @@ export default function Destinations() {
         <div ref={searchRef} className="relative mb-6 max-w-2xl mx-auto">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 ref={inputRef}
                 type="text"
@@ -475,12 +511,12 @@ export default function Destinations() {
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => setShowSuggestions(true)}
                 onKeyDown={handleKeyDown}
-                className="w-full pl-10 pr-10 h-12 text-sm rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
+                className="w-full pl-10 pr-10 h-12 text-sm rounded-xl border-border bg-card text-card-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => { setSearchQuery(""); setDebouncedQuery(""); setShowSuggestions(false); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -488,7 +524,7 @@ export default function Destinations() {
             </div>
             <Button
               onClick={handleSearchSubmit}
-              className="h-12 px-5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-sm transition-all hover:shadow-md"
+              className="h-12 px-5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm transition-all hover:shadow-md"
             >
               <Search className="w-4 h-4" />
             </Button>
@@ -496,11 +532,11 @@ export default function Destinations() {
             <Button
               variant="outline"
               onClick={() => setShowFilters((f) => !f)}
-              className="h-12 px-4 rounded-xl lg:hidden border-slate-200 dark:border-slate-700 relative"
+              className="h-12 px-4 rounded-xl lg:hidden border-border bg-card text-card-foreground relative"
             >
               <Filter className="w-4 h-4" />
               {(selectedCats.length > 0 || selectedBudgets.length > 0) && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-teal-600 text-white text-xs rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[10px] rounded-full flex items-center justify-center font-bold">
                   {selectedCats.length + selectedBudgets.length}
                 </span>
               )}
@@ -509,17 +545,17 @@ export default function Destinations() {
 
           {/* ── Autocomplete Dropdown ── */}
           {showSuggestions && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 max-h-96 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card text-card-foreground rounded-xl shadow-xl border border-border overflow-hidden z-50 max-h-96 overflow-y-auto">
               {/* Recent searches */}
               {!searchQuery && recentSearches.length > 0 && (
                 <div>
                   <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                       <Clock className="w-3 h-3" /> Recent
                     </span>
                     <button
                       onClick={() => { localStorage.removeItem(RECENT_SEARCHES_KEY); setRecentSearches([]); }}
-                      className="text-xs text-slate-400 hover:text-slate-600"
+                      className="text-xs text-muted-foreground hover:text-foreground"
                     >
                       Clear
                     </button>
@@ -527,11 +563,11 @@ export default function Destinations() {
                   {recentSearches.map((s) => (
                     <button
                       key={s}
-                      className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-300 transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted text-sm text-foreground transition-colors"
                       onClick={() => handleSelectSuggestion(s)}
                     >
                       <span className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                         {s}
                       </span>
                       <button
@@ -540,13 +576,13 @@ export default function Destinations() {
                           removeRecentSearch(s);
                           setRecentSearches(getRecentSearches());
                         }}
-                        className="text-slate-300 hover:text-red-500 p-1"
+                        className="text-muted-foreground hover:text-destructive p-1"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </button>
                   ))}
-                  <div className="border-t border-slate-100 dark:border-slate-700" />
+                  <div className="border-t border-border" />
                 </div>
               )}
 
@@ -554,7 +590,7 @@ export default function Destinations() {
               {searchQuery.length >= 2 && suggestions.length > 0 && (
                 <div>
                   <div className="px-4 pt-3 pb-1">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                       <TrendingUp className="w-3 h-3" /> Suggestions
                     </span>
                   </div>
@@ -563,21 +599,21 @@ export default function Destinations() {
                       key={s.item.id}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                         idx === suggestionIndex
-                          ? "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300"
-                          : "hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-muted text-foreground"
                       }`}
                       onMouseEnter={() => setSuggestionIndex(idx)}
                       onClick={() => handleSelectSuggestion(s.item.name)}
                     >
-                      <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                      <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
                       <span className="flex-1 text-left">
                         <span
                           dangerouslySetInnerHTML={{ __html: s.highlightedName }}
-                          className="[&>mark]:bg-teal-200 [&>mark]:dark:bg-teal-800 [&>mark]:text-teal-900 [&>mark]:dark:text-teal-100 [&>mark]:rounded [&>mark]:px-0.5 font-medium"
+                          className="[&>mark]:bg-primary/20 [&>mark]:text-primary [&>mark]:rounded [&>mark]:px-0.5 font-medium"
                         />
-                        <span className="text-xs text-slate-400 ml-2">{s.item.country}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{s.item.country}</span>
                       </span>
-                      <span className="text-xs text-slate-400 capitalize">{s.matchType}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{s.matchType}</span>
                     </button>
                   ))}
                 </div>
@@ -585,7 +621,7 @@ export default function Destinations() {
 
               {/* No suggestions message */}
               {searchQuery.length >= 2 && suggestions.length === 0 && (
-                <div className="px-4 py-6 text-center text-sm text-slate-500">
+                <div className="px-4 py-6 text-center text-sm text-muted-foreground">
                   No suggestions for "{searchQuery}"
                 </div>
               )}
@@ -597,35 +633,35 @@ export default function Destinations() {
         {hasActiveFilters && (
           <div className="flex flex-wrap items-center gap-2 mb-4 max-w-2xl mx-auto">
             {searchQuery && (
-              <span className="bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1">
+              <span className="bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1 border border-primary/20">
                 🔍 "{searchQuery}"
                 <button onClick={() => { setSearchQuery(""); setDebouncedQuery(""); }}>
-                  <X className="w-3 h-3 ml-1 hover:text-teal-900" />
+                  <X className="w-3 h-3 ml-1 hover:text-primary/80" />
                 </button>
               </span>
             )}
             {selectedCats.map((cat) => {
               const cf = CATEGORY_FILTERS.find((c) => c.value === cat);
               return (
-                <span key={cat} className="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1">
+                <span key={cat} className="bg-secondary/10 text-secondary text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1 border border-secondary/20">
                   {cf?.emoji} {cf?.label || cat}
                   <button onClick={() => toggleCategory(cat)}>
-                    <X className="w-3 h-3 ml-1 hover:text-indigo-900" />
+                    <X className="w-3 h-3 ml-1 hover:text-secondary/80" />
                   </button>
                 </span>
               );
             })}
             {selectedBudgets.map((b) => (
-              <span key={b} className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1">
+              <span key={b} className="bg-accent/10 text-accent-foreground dark:text-accent text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1 border border-accent/20">
                 💰 {b}
                 <button onClick={() => toggleBudget(b)}>
-                  <X className="w-3 h-3 ml-1 hover:text-amber-900" />
+                  <X className="w-3 h-3 ml-1 hover:opacity-80" />
                 </button>
               </span>
             ))}
             <button
               onClick={clearFilters}
-              className="text-xs text-slate-500 hover:text-red-500 transition-colors underline-offset-2 hover:underline"
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline font-semibold"
             >
               Clear all
             </button>
@@ -635,16 +671,16 @@ export default function Destinations() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* ── Sidebar Filters ── */}
           <div className={`lg:col-span-1 ${showFilters ? "block" : "hidden lg:block"}`}>
-            <Card className="border border-slate-200 dark:border-slate-700 shadow-sm p-5 sticky top-24 bg-white dark:bg-slate-800 rounded-2xl">
+            <Card className="border border-border shadow-sm p-5 sticky top-24 bg-card text-card-foreground rounded-xl">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
-                  <Filter className="w-4 h-4 text-teal-600" />
+                <h3 className="font-bold text-foreground flex items-center gap-2 text-sm">
+                  <Filter className="w-4 h-4 text-primary" />
                   Filters
                 </h3>
                 {hasActiveFilters && (
                   <button
                     onClick={clearFilters}
-                    className="text-xs text-teal-600 hover:text-teal-700 font-semibold transition-colors"
+                    className="text-xs text-primary hover:text-primary/80 font-semibold transition-colors"
                   >
                     Clear All
                   </button>
@@ -654,7 +690,7 @@ export default function Destinations() {
               <div className="space-y-6">
                 {/* Category filters */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                     Category
                   </label>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -664,8 +700,8 @@ export default function Destinations() {
                         onClick={() => toggleCategory(cat.value)}
                         className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 border ${
                           selectedCats.includes(cat.value)
-                            ? "bg-teal-600 text-white border-teal-600 shadow-sm"
-                            : "bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-teal-400 hover:text-teal-600"
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-muted/40 text-muted-foreground border-border hover:border-primary/50 hover:text-primary"
                         }`}
                       >
                         <span>{cat.emoji}</span>
@@ -677,7 +713,7 @@ export default function Destinations() {
 
                 {/* Budget filters */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                     Budget
                   </label>
                   <div className="space-y-2">
@@ -690,12 +726,12 @@ export default function Destinations() {
                           type="checkbox"
                           checked={selectedBudgets.includes(budget)}
                           onChange={() => toggleBudget(budget)}
-                          className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 dark:border-slate-600"
+                          className="w-4 h-4 rounded text-primary focus:ring-primary border-border bg-card"
                         />
                         <span className={`text-sm transition-colors ${
                           selectedBudgets.includes(budget)
-                            ? "text-teal-600 font-medium"
-                            : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200"
+                            ? "text-primary font-medium"
+                            : "text-muted-foreground group-hover:text-foreground"
                         }`}>
                           {budget === "Budget" ? "💚 " : budget === "Mid-range" ? "🟡 " : "💜 "}
                           {budget}
@@ -713,20 +749,20 @@ export default function Destinations() {
             {/* Results count */}
             {!isLoading && (
               <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+                <p className="text-sm text-muted-foreground">
                   {showPopular ? (
                     <span className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-teal-600" />
+                      <TrendingUp className="w-4 h-4 text-primary" />
                       Popular destinations
                     </span>
                   ) : (
                     <>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      <span className="font-semibold text-foreground">
                         {filteredDestinations.length.toLocaleString()}
                       </span>{" "}
                       destination{filteredDestinations.length !== 1 ? "s" : ""} found
                       {debouncedQuery && (
-                        <span className="text-slate-400"> for "{debouncedQuery}"</span>
+                        <span className="text-muted-foreground"> for "{debouncedQuery}"</span>
                       )}
                     </>
                   )}
@@ -757,7 +793,7 @@ export default function Destinations() {
                   ))}
                 </div>
                 <div className="mt-8 text-center">
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
+                  <p className="text-muted-foreground text-sm mb-4">
                     Search or filter to explore all {allDestinations.length.toLocaleString()}+ destinations worldwide
                   </p>
                 </div>
@@ -781,13 +817,13 @@ export default function Destinations() {
             {/* Empty State */}
             {showEmptyState && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-6">
-                  <AlertCircle className="w-10 h-10 text-slate-400" />
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6 border border-border">
+                  <AlertCircle className="w-10 h-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                <h3 className="text-xl font-bold text-foreground mb-2">
                   No destinations found
                 </h3>
-                <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md">
+                <p className="text-muted-foreground mb-6 max-w-md">
                   We couldn't find destinations matching{" "}
                   {debouncedQuery && <strong>"{debouncedQuery}"</strong>}
                   {selectedCats.length > 0 && ` with the selected categories`}.
@@ -796,8 +832,8 @@ export default function Destinations() {
                 {/* Did you mean? */}
                 {didYouMean.length > 0 && (
                   <div className="mb-8">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1 justify-center">
-                      <TrendingUp className="w-4 h-4" />
+                    <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1 justify-center">
+                      <TrendingUp className="w-4 h-4 text-primary" />
                       Did you mean?
                     </p>
                     <div className="flex flex-wrap gap-2 justify-center">
@@ -805,7 +841,7 @@ export default function Destinations() {
                         <button
                           key={dest.id}
                           onClick={() => handleSelectSuggestion(dest.name)}
-                          className="px-4 py-2 bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 rounded-full text-sm font-medium transition-colors border border-teal-200 dark:border-teal-800"
+                          className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-sm font-medium transition-colors border border-primary/20"
                         >
                           📍 {dest.name}, {dest.country}
                         </button>
@@ -816,7 +852,7 @@ export default function Destinations() {
 
                 <Button
                   onClick={clearFilters}
-                  className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl px-6"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6"
                 >
                   Reset all filters
                 </Button>

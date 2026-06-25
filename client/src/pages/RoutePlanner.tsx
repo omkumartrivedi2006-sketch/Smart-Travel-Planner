@@ -8,6 +8,8 @@ import { MapView, MapMarker } from "@/components/Map";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLocationData } from "@/contexts/LocationContext";
+import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 interface RouteInfo {
   name: string;
@@ -40,6 +42,16 @@ export default function RoutePlanner() {
   const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
   const [destinationsList, setDestinationsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const { location: userLoc } = useLocationData();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const startParam = params.get("start");
+    if (!startParam && userLoc && startLocation === "Jaipur") {
+      setStartLocation(userLoc.city);
+    }
+  }, [userLoc]);
 
   // Fetch active database destinations on mount to resolve coordinates
   useEffect(() => {
@@ -76,12 +88,21 @@ export default function RoutePlanner() {
     try {
       // 1. Resolve start location coordinates (origin)
       const startClean = startLocation.trim().toLowerCase();
-      const matchedStart = destinationsList.find(
-        (d) => d.name.toLowerCase().includes(startClean) || d.country.toLowerCase().includes(startClean)
-      );
-      
-      const originLat = matchedStart ? matchedStart.latitude : 26.9124; // Default Jaipur Lat if not matched
-      const originLng = matchedStart ? matchedStart.longitude : 75.7873; // Default Jaipur Lng if not matched
+      let originLat = 26.9124; // Default Jaipur Lat if not matched
+      let originLng = 75.7873; // Default Jaipur Lng if not matched
+
+      if (userLoc && (startClean === "my location" || startClean === "current location" || startClean.includes(userLoc.city.toLowerCase()))) {
+        originLat = userLoc.latitude;
+        originLng = userLoc.longitude;
+      } else {
+        const matchedStart = destinationsList.find(
+          (d) => d.name.toLowerCase().includes(startClean) || d.country.toLowerCase().includes(startClean)
+        );
+        if (matchedStart) {
+          originLat = matchedStart.latitude;
+          originLng = matchedStart.longitude;
+        }
+      }
 
       // 2. Resolve destination ID
       const endClean = endLocation.trim().toLowerCase();
@@ -203,17 +224,20 @@ export default function RoutePlanner() {
               Route Planner
             </h1>
           </div>
-          {toggleTheme && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="text-foreground hover:bg-muted"
-              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            >
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <LocationNavbarButton />
+            {toggleTheme && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-foreground hover:bg-muted"
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+              >
+                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -226,7 +250,20 @@ export default function RoutePlanner() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-foreground/80 mb-2">Start Location</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-semibold text-foreground/80">Start Location</label>
+                    {userLoc && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        onClick={() => setStartLocation(userLoc.city)}
+                        className="text-teal-600 hover:text-teal-700 dark:text-teal-400 p-0 h-auto text-xs font-semibold flex items-center gap-1"
+                      >
+                        <MapPin className="w-3 h-3" />
+                        Use Current Location
+                      </Button>
+                    )}
+                  </div>
                   <Input
                     placeholder="Enter start location"
                     value={startLocation}

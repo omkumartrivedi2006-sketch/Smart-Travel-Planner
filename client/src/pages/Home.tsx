@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import {
   MapPin,
   Plane,
-  DollarSign,
+  IndianRupee,
   Cloud,
   Map,
   MessageCircle,
@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { apiFetch, clearSession } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
+import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -30,13 +31,21 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [popularDestinations, setPopularDestinations] = useState<any[]>([]);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Load session status and popular destinations
   useEffect(() => {
     const session = localStorage.getItem("session_user");
     if (session) {
       try {
-        setSessionUser(JSON.parse(session));
+        const parsedObj = JSON.parse(session);
+        setSessionUser(parsedObj);
+        
+        // Load saved profile picture
+        const savedPic = localStorage.getItem(`profile_pic_${parsedObj.email}`);
+        if (savedPic) {
+          setProfileImage(savedPic);
+        }
       } catch (e) {
         console.error(e);
       }
@@ -103,7 +112,7 @@ export default function Home() {
       color: "from-purple-500 to-purple-600",
     },
     {
-      icon: DollarSign,
+      icon: IndianRupee,
       title: "Budget Calculator",
       description: "Smart budgeting for accommodation, food, and activities",
       path: "/budget-calculator",
@@ -151,17 +160,18 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-foreground">Smart Travel Planner</h1>
           </div>
           <nav className="flex items-center gap-4">
+            <LocationNavbarButton />
             <Button
               variant="ghost"
               onClick={() => navigate("/destinations")}
-              className="text-slate-600 hover:text-teal-600"
+              className="text-foreground/70 hover:text-teal-600 dark:text-foreground/80 dark:hover:text-teal-400"
             >
               Explore
             </Button>
             <Button
               variant="ghost"
               onClick={() => navigate("/saved-trips")}
-              className="text-slate-600 hover:text-teal-600"
+              className="text-foreground/70 hover:text-teal-600 dark:text-foreground/80 dark:hover:text-teal-400"
             >
               My Trips
             </Button>
@@ -171,16 +181,20 @@ export default function Home() {
                 <Button
                   variant="ghost"
                   onClick={() => navigate("/profile")}
-                  className="text-teal-600 hover:text-teal-700 flex items-center gap-1.5"
+                  className="text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 flex items-center gap-1.5"
                 >
-                  <User className="w-4 h-4 text-teal-600" />
+                  {profileImage ? (
+                    <img src={profileImage} alt="Profile" className="w-5 h-5 rounded-full object-cover border border-teal-500" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                   Hi, {sessionUser.name.split(" ")[0]}
                 </Button>
                 {sessionUser.role === "admin" && (
                   <Button
                     variant="ghost"
                     onClick={() => navigate("/admin")}
-                    className="text-purple-600 hover:text-purple-700 border border-purple-200"
+                    className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 border border-purple-200 dark:border-purple-700/50"
                   >
                     Admin
                   </Button>
@@ -188,7 +202,7 @@ export default function Home() {
                 <Button
                   variant="ghost"
                   onClick={handleLogout}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
                   title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
@@ -199,7 +213,7 @@ export default function Home() {
                 <Button
                   variant="ghost"
                   onClick={() => navigate("/login")}
-                  className="text-slate-600 hover:text-teal-600"
+                  className="text-foreground/70 hover:text-teal-600 dark:text-foreground/80 dark:hover:text-teal-400"
                 >
                   Login
                 </Button>
@@ -232,9 +246,11 @@ export default function Home() {
           <img
             src="https://d2xsxph8kpxj0f.cloudfront.net/310519663277913813/SvagPhRfUYBjMa8YoXbyc2/hero-destination-VZ2wPExvNymjQuKmtGaKGR.webp"
             alt="Hero"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-all duration-500 dark:brightness-[0.45] dark:contrast-[1.05] dark:saturate-[0.75]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
+          {/* Blend image side and bottom in dark and light modes */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/55 to-transparent dark:from-background dark:via-background/80 dark:to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
@@ -242,21 +258,21 @@ export default function Home() {
             <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
               Explore Confidently
             </h2>
-            <p className="text-lg sm:text-xl text-white/90 mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl text-white/95 mb-8 leading-relaxed">
               AI-powered travel planning that adapts to your budget, interests, and style. Discover your next adventure with intelligent recommendations.
             </p>
             
             {/* Hero Search Box */}
-            <div className="flex bg-white rounded-lg p-1.5 shadow-2xl mb-8 max-w-lg items-center">
+            <div className="flex bg-white/95 dark:bg-card border border-transparent dark:border-border backdrop-blur-sm rounded-xl p-1.5 shadow-2xl mb-8 max-w-lg items-center transition-all duration-300">
               <Input
                 type="text"
                 placeholder="Search country or city (e.g. Bali, Spain, Switzerland)..."
-                className="border-0 bg-transparent text-slate-800 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none flex-1 pl-3 text-sm sm:text-base border-none shadow-none"
+                className="border-0 bg-transparent text-slate-900 dark:text-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none flex-1 pl-3 text-sm sm:text-base border-none shadow-none"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
-              <Button onClick={handleSearch} className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-md flex items-center gap-1.5">
+              <Button onClick={handleSearch} className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-lg flex items-center gap-1.5 transition-all">
                 <Search className="w-4 h-4" />
                 Search
               </Button>
@@ -285,21 +301,21 @@ export default function Home() {
 
       {/* Quick Actions */}
       <section className="container mx-auto px-4 py-16">
-        <h3 className="text-3xl font-bold text-slate-900 mb-12">Quick Actions</h3>
+        <h3 className="text-3xl font-bold text-foreground mb-12">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, idx) => {
             const Icon = feature.icon;
             return (
               <Card
                 key={idx}
-                className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-white hover:-translate-y-1"
+                className="p-6 hover:shadow-xl transition-all duration-300 cursor-pointer border border-border bg-card hover:-translate-y-1 group"
                 onClick={() => navigate(feature.path)}
               >
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4`}>
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 shadow-md group-hover:scale-110 transition-transform duration-300`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
-                <h4 className="font-bold text-slate-900 mb-2">{feature.title}</h4>
-                <p className="text-sm text-slate-600 leading-relaxed">{feature.description}</p>
+                <h4 className="font-bold text-card-foreground mb-2">{feature.title}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
               </Card>
             );
           })}
@@ -309,11 +325,11 @@ export default function Home() {
       {/* Popular Destinations */}
       <section className="container mx-auto px-4 py-16">
         <div className="flex items-center justify-between mb-12 flex-wrap gap-4">
-          <h3 className="text-3xl font-bold text-slate-900">Popular Destinations</h3>
+          <h3 className="text-3xl font-bold text-foreground">Popular Destinations</h3>
           <Button
             variant="outline"
             onClick={() => navigate("/destinations")}
-            className="border-teal-600 text-teal-600 hover:bg-teal-50"
+            className="border-teal-600 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/30 dark:border-teal-500 dark:text-teal-400"
           >
             View All
           </Button>
@@ -323,26 +339,26 @@ export default function Home() {
           {popularDestinations.map((dest) => (
             <Card
               key={dest.id}
-              className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border-0 bg-white"
+              className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border border-border bg-card group"
               onClick={() => navigate(`/destinations/${dest.id}`)}
             >
               <div className="relative h-48 overflow-hidden">
                 <img
                   src={dest.image}
                   alt={dest.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
                     e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
                   }}
                 />
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm font-semibold text-slate-900">
+                <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-white">
                   {dest.category}
                 </div>
               </div>
               <div className="p-6">
-                <h4 className="text-xl font-bold text-slate-900 mb-2">{dest.name}</h4>
+                <h4 className="text-xl font-bold text-card-foreground mb-2">{dest.name}</h4>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600 font-semibold">{dest.budget}</span>
+                  <span className="text-sm text-muted-foreground font-semibold">{dest.budget}</span>
                   <div className="flex gap-1">
                     {[...Array(5)].map((_, i) => (
                       <Star

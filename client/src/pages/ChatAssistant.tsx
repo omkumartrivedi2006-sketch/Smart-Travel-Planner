@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 import {
   MessageCircle,
@@ -20,12 +20,15 @@ import {
   IndianRupee,
   Umbrella,
   CheckCircle2,
+  User,
+  Trash2,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
+import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 // =============================================================================
 // DESTINATION DATABASE (50 SAMPLE DESTINATIONS)
@@ -450,27 +453,27 @@ const renderFormattedText = (text: string) => {
     const parts = rawText.split(/(\*\*.*?\*\*)/g);
     const renderedParts = parts.map((part, pIdx) => {
       if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={pIdx} className="font-bold text-teal-800 dark:text-teal-400">{part.slice(2, -2)}</strong>;
+        return <strong key={pIdx} className="font-bold text-primary">{part.slice(2, -2)}</strong>;
       }
       return part;
     });
 
     if (isHeading) {
       return (
-        <h4 key={i} className="text-sm font-bold text-slate-800 mt-3 mb-1.5 border-b border-slate-100 pb-1">
+        <h4 key={i} className="text-sm font-bold text-foreground mt-3 mb-1.5 border-b border-border pb-1">
           {renderedParts}
         </h4>
       );
     }
     if (isListItem) {
       return (
-        <li key={i} className="list-disc list-inside ml-2 text-xs leading-relaxed mb-1 text-slate-700">
+        <li key={i} className="list-disc list-inside ml-2 text-xs leading-relaxed mb-1 text-muted-foreground">
           {renderedParts}
         </li>
       );
     }
     return (
-      <p key={i} className="leading-relaxed mb-1 text-xs sm:text-sm text-slate-800">
+      <p key={i} className="leading-relaxed mb-1 text-xs sm:text-sm text-foreground">
         {renderedParts}
       </p>
     );
@@ -492,9 +495,12 @@ export default function ChatAssistant() {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [sessionUser, setSessionUser] = useState<any>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatCardRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll local container only, keeping browser window scroll locked
   useEffect(() => {
@@ -618,6 +624,21 @@ export default function ChatAssistant() {
       }
     }
     loadHistory();
+
+    // Load session user and profile pic
+    const session = localStorage.getItem("session_user");
+    if (session) {
+      try {
+        const parsedObj = JSON.parse(session);
+        setSessionUser(parsedObj);
+        const savedPic = localStorage.getItem(`profile_pic_${parsedObj.email}`);
+        if (savedPic) {
+          setProfileImage(savedPic);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
 
     const params = new URLSearchParams(window.location.search);
     const topicParam = params.get("topic");
@@ -840,9 +861,12 @@ export default function ChatAssistant() {
     }, 50);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !isTyping && inputText.trim()) {
-      handleSendMessage();
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!isTyping && inputText.trim()) {
+        handleSendMessage();
+      }
     }
   };
 
@@ -898,6 +922,7 @@ export default function ChatAssistant() {
               <Logo className="w-6 h-6 text-primary animate-pulse" />
               AI Travel Copilot
             </h1>
+            <LocationNavbarButton />
             {toggleTheme && (
               <Button
                 variant="ghost"
@@ -919,25 +944,25 @@ export default function ChatAssistant() {
             
             {/* 1. SIDEBAR: Quick Actions Card */}
             <div className="lg:col-span-1 space-y-6">
-              <Card className="border border-slate-200 shadow-xl p-5 bg-white rounded-2xl">
-                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-1.5 text-base border-b border-slate-100 pb-2">
-                  <Sparkles className="w-5 h-5 text-orange-500" />
+              <Card className="border border-border shadow-sm p-5 bg-card text-card-foreground rounded-xl">
+                <h3 className="font-bold text-foreground mb-4 flex items-center gap-1.5 text-base border-b border-border pb-2">
+                  <Sparkles className="w-5 h-5 text-secondary" />
                   Travel Assistant
                 </h3>
 
                 <div className="space-y-4 max-h-[350px] lg:max-h-[600px] overflow-y-auto pr-1">
                   {sidebarQuickActions.map((group) => (
                     <div key={group.group} className="space-y-1.5">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">{group.group}</p>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider pl-1">{group.group}</p>
                       {group.items.map((action) => (
                         <button
                           key={action.label}
                           disabled={isTyping}
-                          className="w-full text-left text-xs font-semibold px-3 py-2 border border-slate-100 rounded-xl bg-slate-50/50 text-slate-700 hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-all font-sans cursor-pointer flex items-center justify-between"
+                          className="w-full text-left text-xs font-semibold px-3 py-2 border border-border rounded-lg bg-muted/40 text-foreground hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all font-sans cursor-pointer flex items-center justify-between"
                           onClick={() => handleTriggerAIQuery(action.query)}
                         >
                           {action.label}
-                          <span className="text-[10px] text-slate-400">→</span>
+                          <span className="text-[10px] text-muted-foreground">→</span>
                         </button>
                       ))}
                     </div>
@@ -946,29 +971,29 @@ export default function ChatAssistant() {
               </Card>
 
               {/* Travel Tip of the Day */}
-              <Card className="border border-yellow-200 bg-yellow-50/40 p-5 rounded-2xl shadow-sm">
-                <h4 className="font-bold text-yellow-800 flex items-center gap-1.5 text-sm mb-2">
-                  <Lightbulb className="w-4 h-4 text-yellow-600 animate-bounce" />
+              <Card className="border border-amber-200/50 dark:border-amber-900/30 bg-amber-500/5 dark:bg-amber-950/10 p-5 rounded-xl shadow-sm">
+                <h4 className="font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1.5 text-sm mb-2">
+                  <Lightbulb className="w-4 h-4 text-amber-600 dark:text-amber-400 animate-bounce" />
                   Tip of the Day
                 </h4>
-                <p className="text-xs text-yellow-900 leading-relaxed font-sans">
+                <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed font-sans font-medium">
                   "Pack a thin microfiber towel. It dries 10x faster than normal cotton towels and rolls down to just 15% of the size in your backpack!"
                 </p>
               </Card>
 
               {/* AI Travel Insights */}
-              <Card className="border border-teal-100 bg-teal-50/20 p-5 rounded-2xl shadow-sm">
-                <h4 className="font-bold text-teal-800 flex items-center gap-1.5 text-sm mb-3">
-                  <TrendingUp className="w-4 h-4 text-teal-600" />
+              <Card className="border border-primary/20 bg-primary/5 p-5 rounded-xl shadow-sm">
+                <h4 className="font-bold text-primary flex items-center gap-1.5 text-sm mb-3">
+                  <TrendingUp className="w-4 h-4 text-primary" />
                   Travel Insights
                 </h4>
-                <ul className="space-y-2 text-xs text-teal-900 font-medium">
+                <ul className="space-y-2 text-xs text-foreground/80 font-medium">
                   <li className="flex gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     <span>Flight booking prices are cheapest on Tuesday nights.</span>
                   </li>
                   <li className="flex gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     <span>Scuba diving in Havelock is best done before 11 AM.</span>
                   </li>
                 </ul>
@@ -979,222 +1004,323 @@ export default function ChatAssistant() {
             <div className="lg:col-span-3 space-y-6">
               
               {/* Dynamic Chat Dialog Card */}
-              <Card ref={chatCardRef} className="border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[520px] md:h-[580px] bg-white rounded-2xl">
+              <Card ref={chatCardRef} className="border border-border shadow-sm overflow-hidden flex flex-col h-[550px] md:h-[600px] bg-card text-card-foreground rounded-xl">
+                
+                {/* Chat window Header */}
+                <div className="px-6 py-4 border-b border-border bg-muted/20 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="font-bold text-sm text-foreground">AI Travel Copilot</span>
+                  </div>
+                  {messages.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await apiFetch("/api/chat/history", { method: "DELETE" });
+                          setMessages([{
+                            id: 1,
+                            text: "Hi! I am your AI Travel Copilot. Tap any Quick Action on the left or type your destination in the box, and I'll generate itineraries, budgets, and recommendations instantly!",
+                            sender: "ai",
+                            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                            type: "text",
+                          }]);
+                          setSessionId("");
+                          toast.success("Chat history cleared!");
+                        } catch (err: any) {
+                          toast.error("Failed to clear chat log.");
+                        }
+                      }}
+                      className="text-muted-foreground hover:text-destructive text-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Clear Chat
+                    </Button>
+                  )}
+                </div>
+
                 {/* Chat Stream Messages */}
                 <div
                   ref={chatContainerRef}
-                  className="flex-1 overflow-y-auto p-6 space-y-5 bg-gradient-to-b from-slate-50/30 to-white"
+                  className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-muted/5 to-card"
                 >
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
+                      className={`flex gap-3 max-w-[92%] sm:max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                        msg.sender === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
+                      }`}
                     >
-                      {/* Text Bubble */}
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-[10px] text-slate-400 font-semibold font-sans">{msg.timestamp}</span>
-                      </div>
-                      
-                      <div
-                        className={`max-w-[90%] sm:max-w-[80%] px-4 py-3 rounded-2xl shadow-sm text-sm font-sans break-words ${
-                          msg.sender === "ai"
-                            ? "bg-slate-100 text-slate-900 rounded-tl-sm border border-slate-200"
-                            : "bg-teal-650 text-white rounded-tr-sm"
-                        }`}
-                      >
-                        <div className="space-y-1">{renderFormattedText(msg.text)}</div>
+                      {/* Avatar */}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border shrink-0 shadow-sm ${
+                        msg.sender === "user"
+                          ? "bg-secondary/15 text-secondary border-secondary/20"
+                          : "bg-primary/10 text-primary border-primary/20"
+                      }`}>
+                        {msg.sender === "user" ? (
+                          profileImage ? (
+                            <img src={profileImage} alt="User" className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            <User className="w-4 h-4" />
+                          )
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
                       </div>
 
-                      {/* --- Adaptive Card rendering based on message type --- */}
-                      {msg.sender === "ai" && msg.type === "destinations" && msg.destinations && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 w-full max-w-[95%]">
-                          {msg.destinations.map((dest) => (
-                            <Card
-                              key={dest.id}
-                              onClick={() => navigate(`/destinations/${dest.id >= 200 ? dest.id - 200 : dest.id - 100}`)}
-                              className="border border-slate-200 bg-white shadow-md rounded-xl overflow-hidden hover:shadow-lg transition-all cursor-pointer hover:-translate-y-0.5"
-                            >
-                              <div className="h-32 overflow-hidden relative">
-                                <img
-                                  src={dest.image}
-                                  alt={dest.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                                  }}
-                                />
-                                <div className="absolute top-2 right-2 bg-white/95 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-900 border border-slate-200 shadow-sm">
-                                  {dest.category}
-                                </div>
-                              </div>
-                              <div className="p-4 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1">
-                                    <MapPin className="w-3.5 h-3.5 text-teal-600" />
-                                    {dest.name}
-                                  </h4>
-                                  <div className="flex items-center gap-1 text-[11px] font-bold text-amber-500">
-                                    <Star className="w-3 h-3 fill-amber-500" />
-                                    {dest.rating}
+                      {/* Bubble and Card */}
+                      <div className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"} w-full`}>
+                        <div
+                          className={`px-4 py-3 rounded-2xl shadow-xs text-sm break-words leading-relaxed ${
+                            msg.sender === "user"
+                              ? "bg-primary text-primary-foreground rounded-tr-none font-medium"
+                              : "bg-muted/40 text-foreground border border-border rounded-tl-none font-normal"
+                          }`}
+                        >
+                          <div className="space-y-1">{renderFormattedText(msg.text)}</div>
+                        </div>
+
+                        {/* Timestamp */}
+                        <span className="text-[9px] text-muted-foreground font-semibold mt-1 px-1">
+                          {msg.timestamp}
+                        </span>
+
+                        {/* --- Adaptive Card rendering based on message type --- */}
+                        {msg.sender === "ai" && msg.type === "destinations" && msg.destinations && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 w-full max-w-[95%]">
+                            {msg.destinations.map((dest) => (
+                              <Card
+                                key={dest.id}
+                                onClick={() => navigate(`/destinations/${dest.id >= 200 ? dest.id - 200 : dest.id - 100}`)}
+                                className="border border-border bg-card text-card-foreground shadow-sm rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5"
+                              >
+                                <div className="h-32 overflow-hidden relative">
+                                  <img
+                                    src={dest.image}
+                                    alt={dest.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
+                                    }}
+                                  />
+                                  <div className="absolute top-2 right-2 bg-background/95 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-[10px] font-bold text-foreground border border-border shadow-xs">
+                                    {dest.category}
                                   </div>
                                 </div>
-                                <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">{dest.description}</p>
-                                <div className="text-[11px] font-semibold text-slate-700 bg-slate-50 p-2 rounded">
-                                  <div>💰 Budget: <span className="text-teal-600 font-bold">{dest.budgetRange}</span></div>
-                                  <div>🌤️ Best Time: <span className="text-slate-900">{dest.bestTime}</span></div>
+                                <div className="p-4 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="font-bold text-foreground text-sm flex items-center gap-1">
+                                      <MapPin className="w-3.5 h-3.5 text-primary" />
+                                      {dest.name}
+                                    </h4>
+                                    <div className="flex items-center gap-1 text-[11px] font-bold text-amber-500">
+                                      <Star className="w-3 h-3 fill-amber-500" />
+                                      {dest.rating}
+                                    </div>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{dest.description}</p>
+                                  <div className="text-[11px] font-semibold text-muted-foreground bg-muted/65 p-2 rounded">
+                                    <div>💰 Budget: <span className="text-primary font-bold">{dest.budgetRange}</span></div>
+                                    <div>🌤️ Best Time: <span className="text-foreground">{dest.bestTime}</span></div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {dest.tags.slice(0, 3).map(tag => (
+                                      <span key={tag} className="text-[9px] bg-primary/10 text-primary border border-primary/20 font-bold px-1.5 py-0.5 rounded">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-sans text-xs h-8 mt-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/planner?destination=${encodeURIComponent(dest.name)}`);
+                                    }}
+                                  >
+                                    Plan Trip Here
+                                  </Button>
                                 </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {dest.tags.slice(0, 3).map(tag => (
-                                    <span key={tag} className="text-[9px] bg-teal-50 text-teal-700 font-bold px-1.5 py-0.5 rounded">
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  className="w-full bg-teal-600 text-white font-sans text-xs h-8 mt-2 hover:bg-teal-700"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/planner?destination=${encodeURIComponent(dest.name)}`);
-                                  }}
-                                >
-                                  Plan Trip Here
-                                </Button>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
+                              </Card>
+                            ))}
+                          </div>
+                        )}
 
-                      {msg.sender === "ai" && msg.type === "itinerary" && msg.itinerary && (
-                        <div className="space-y-3 mt-4 w-full max-w-[95%]">
-                          {msg.itinerary.map((day, idx) => (
-                            <Card key={idx} className="border border-slate-200 bg-white p-4 rounded-xl shadow-sm space-y-2">
-                              <h4 className="font-bold text-slate-900 text-xs sm:text-sm border-b border-slate-100 pb-1.5 flex items-center justify-between">
-                                <span>{day.day}</span>
-                                <span className="text-[10px] text-slate-400">⏱️ {day.travelTime}</span>
-                              </h4>
-                              <ul className="space-y-1 text-xs text-slate-700">
-                                {day.activities.map((act, aIdx) => (
-                                  <li key={aIdx} className="leading-relaxed">{act}</li>
+                        {msg.sender === "ai" && msg.type === "itinerary" && msg.itinerary && (
+                          <div className="space-y-3 mt-4 w-full max-w-[95%]">
+                            {msg.itinerary.map((day, idx) => (
+                              <Card key={idx} className="border border-border bg-card text-card-foreground p-4 rounded-xl shadow-sm space-y-2">
+                                <h4 className="font-bold text-foreground text-xs sm:text-sm border-b border-border pb-1.5 flex items-center justify-between">
+                                  <span>{day.day}</span>
+                                  <span className="text-[10px] text-muted-foreground font-medium">⏱️ {day.travelTime}</span>
+                                </h4>
+                                <ul className="space-y-1 text-xs text-muted-foreground">
+                                  {day.activities.map((act, aIdx) => (
+                                    <li key={aIdx} className="leading-relaxed font-medium flex items-start gap-1.5">
+                                      <span className="text-primary mt-0.5">•</span>
+                                      <span>{act}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-muted-foreground bg-muted/65 p-2 rounded mt-2">
+                                  <div>🍲 Food: <span className="text-foreground font-medium">{day.food}</span></div>
+                                  <div>💰 Cost: <span className="text-primary">{day.cost}</span></div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+
+                        {msg.sender === "ai" && msg.type === "budget" && msg.budget && (
+                          <Card className="border border-primary/20 bg-primary/5 p-5 rounded-xl shadow-sm mt-4 w-full max-w-[90%] space-y-3">
+                            <h4 className="font-bold text-primary text-sm border-b border-primary/25 pb-2 flex items-center gap-1.5">
+                              <IndianRupee className="w-4 h-4" />
+                              Estimated 5-Day Expense Planner
+                            </h4>
+                            <div className="space-y-2 text-xs font-semibold text-muted-foreground">
+                              <div className="flex justify-between">
+                                <span>🏨 Hotel / Accommodation:</span>
+                                <span className="text-foreground">{msg.budget.hotel}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>✈️ Transport / Cab fares:</span>
+                                <span className="text-foreground">{msg.budget.transport}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>🍲 Food & Fine dining:</span>
+                                <span className="text-foreground">{msg.budget.food}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>🎢 Activities & Ticketing:</span>
+                                <span className="text-foreground">{msg.budget.activities}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>🛡️ Misc / Emergencies:</span>
+                                <span className="text-foreground">{msg.budget.misc}</span>
+                              </div>
+                              <div className="flex justify-between border-t border-primary/25 pt-2 text-sm font-bold text-primary">
+                                <span>Total Estimated Budget:</span>
+                                <span>{msg.budget.total}</span>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-sans text-xs h-9 mt-2"
+                              onClick={() => {
+                                const cleanB = msg.budget?.total.replace(/[^0-9]/g, "");
+                                navigate(`/planner?budget=${cleanB}`);
+                              }}
+                            >
+                              Apply Budget to Trip Planner
+                            </Button>
+                          </Card>
+                        )}
+
+                        {msg.sender === "ai" && msg.type === "weather" && msg.weather && (
+                          <Card className="border border-secondary/20 bg-secondary/5 p-5 rounded-xl shadow-sm mt-4 w-full max-w-[90%] space-y-3">
+                            <h4 className="font-bold text-secondary text-sm border-b border-secondary/25 pb-2 flex items-center gap-1.5">
+                              <Cloud className="w-4 h-4" />
+                              Weather & Packing Advisory
+                            </h4>
+                            <div className="flex items-center gap-4 py-1">
+                              <span className="text-4xl">☀️</span>
+                              <div>
+                                <p className="text-sm font-bold text-foreground">Forecast: {msg.weather.summary}</p>
+                                <p className="text-xs font-semibold text-muted-foreground">Average Temp: {msg.weather.temp}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <p className="text-xs font-bold text-foreground">👜 Packing Checklist Essentials:</p>
+                              <ul className="space-y-1 text-[11px] text-muted-foreground">
+                                {msg.weather.packingList.map((item, idx) => (
+                                  <li key={idx} className="flex gap-1.5 items-center font-medium">
+                                    <span className="text-secondary font-bold">✓</span> {item}
+                                  </li>
                                 ))}
                               </ul>
-                              <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600 bg-slate-50 p-2 rounded mt-2">
-                                <div>🍲 Food: <span className="text-slate-800 font-medium">{day.food}</span></div>
-                                <div>💰 Cost: <span className="text-teal-600">{day.cost}</span></div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
+                            </div>
 
-                      {msg.sender === "ai" && msg.type === "budget" && msg.budget && (
-                        <Card className="border border-teal-200 bg-teal-50/10 p-5 rounded-xl shadow-md mt-4 w-full max-w-[90%] space-y-3">
-                          <h4 className="font-bold text-teal-800 text-sm border-b border-teal-100 pb-2 flex items-center gap-1.5">
-                            <IndianRupee className="w-4 h-4 text-teal-600" />
-                            Estimated 5-Day Expense Planner
-                          </h4>
-                          <div className="space-y-2 text-xs font-semibold text-slate-700">
-                            <div className="flex justify-between">
-                              <span>🏨 Hotel / Accommodation:</span>
-                              <span className="text-slate-900">{msg.budget.hotel}</span>
+                            <div className="space-y-2 border-t border-secondary/25 pt-2">
+                              <p className="text-xs font-bold text-foreground">💡 Travel Tips:</p>
+                              <ul className="space-y-1 text-[11px] text-muted-foreground italic leading-relaxed">
+                                {msg.weather.tips.map((tip, idx) => (
+                                  <li key={idx}>• {tip}</li>
+                                ))}
+                              </ul>
                             </div>
-                            <div className="flex justify-between">
-                              <span>✈️ Transport / Cab fares:</span>
-                              <span className="text-slate-900">{msg.budget.transport}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>🍲 Food & Fine dining:</span>
-                              <span className="text-slate-900">{msg.budget.food}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>🎢 Activities & Ticketing:</span>
-                              <span className="text-slate-900">{msg.budget.activities}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>🛡️ Misc / Emergencies:</span>
-                              <span className="text-slate-900">{msg.budget.misc}</span>
-                            </div>
-                            <div className="flex justify-between border-t border-teal-200 pt-2 text-sm font-bold text-teal-700">
-                              <span>Total Estimated Budget:</span>
-                              <span>{msg.budget.total}</span>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="w-full bg-teal-600 text-white font-sans text-xs h-9 mt-2 hover:bg-teal-700"
-                            onClick={() => {
-                              const cleanB = msg.budget?.total.replace(/[^0-9]/g, "");
-                              navigate(`/planner?budget=${cleanB}`);
-                            }}
-                          >
-                            Apply Budget to Trip Planner
-                          </Button>
-                        </Card>
-                      )}
-
-                      {msg.sender === "ai" && msg.type === "weather" && msg.weather && (
-                        <Card className="border border-cyan-200 bg-cyan-50/10 p-5 rounded-xl shadow-md mt-4 w-full max-w-[90%] space-y-3">
-                          <h4 className="font-bold text-cyan-800 text-sm border-b border-cyan-200 pb-2 flex items-center gap-1.5">
-                            <Cloud className="w-4 h-4 text-cyan-600" />
-                            Weather & Packing Advisory
-                          </h4>
-                          <div className="flex items-center gap-4 py-1">
-                            <span className="text-4xl text-cyan-600">☀️</span>
-                            <div>
-                              <p className="text-sm font-bold text-slate-800">Forecast: {msg.weather.summary}</p>
-                              <p className="text-xs font-semibold text-slate-500">Average Temp: {msg.weather.temp}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <p className="text-xs font-bold text-slate-700">👜 Packing Checklist Essentials:</p>
-                            <ul className="space-y-1 text-[11px] text-slate-600">
-                              {msg.weather.packingList.map((item, idx) => (
-                                <li key={idx} className="flex gap-1.5 items-center font-medium">
-                                  <span className="text-cyan-600">✓</span> {item}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          <div className="space-y-2 border-t border-cyan-100 pt-2">
-                            <p className="text-xs font-bold text-slate-700">💡 Travel Tips:</p>
-                            <ul className="space-y-1 text-[11px] text-slate-600 italic leading-relaxed">
-                              {msg.weather.tips.map((tip, idx) => (
-                                <li key={idx}>• {tip}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </Card>
-                      )}
+                          </Card>
+                        )}
+                      </div>
                     </div>
                   ))}
+
+                  {/* Empty state Suggestions Dashboard */}
+                  {messages.length === 1 && (
+                    <div className="mt-4 max-w-2xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
+                      <div className="text-center py-4 space-y-2">
+                        <div className="inline-flex w-12 h-12 rounded-full bg-primary/10 text-primary items-center justify-center border border-primary/20 shadow-xs animate-bounce">
+                          <Sparkles className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-lg font-bold text-foreground">Plan Your Next Trip Instantly</h3>
+                        <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+                          Ask for itineraries, detailed budgets, packing tips, or destination lists. Tap any suggestion below to start!
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {[
+                          { title: "🗺️ Suggest Destinations", query: "Suggest popular destinations for my next vacation", desc: "Discover perfect vacation spots" },
+                          { title: "💰 Create a Budget Trip", query: "Calculate budget for a trip to Kashmir", desc: "Get detailed cost estimates" },
+                          { title: "🏨 Recommend Hotels", query: "Recommend top-rated hotels in popular places", desc: "Find the best places to stay" },
+                          { title: "🎒 Things to do Nearby", query: "What are the top things to do in Goa?", desc: "Explore local activities & events" }
+                        ].map((item) => (
+                          <Card
+                            key={item.title}
+                            onClick={() => handleTriggerAIQuery(item.query)}
+                            className="p-4 hover:bg-primary/5 border border-border bg-card hover:border-primary/30 cursor-pointer transition-all duration-300 rounded-xl hover:-translate-y-0.5 group flex flex-col justify-between"
+                          >
+                            <div>
+                              <h5 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{item.title}</h5>
+                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
+                            </div>
+                            <span className="text-[10px] text-primary font-bold mt-3.5 flex items-center gap-1 font-sans">
+                              Try this <span className="group-hover:translate-x-1 transition-transform">→</span>
+                            </span>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-tl-sm border border-slate-200 px-4 py-3 flex items-center gap-1.5 shadow-sm">
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <div className="flex items-start gap-3 animate-in fade-in duration-200">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="bg-muted/40 border border-border text-muted-foreground rounded-2xl rounded-tl-none px-4 py-3 shadow-xs flex items-center gap-1.5 min-w-[60px] justify-center">
+                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Input Area Form */}
-                <div className="border-t border-slate-200 p-4 bg-white">
-                  <div className="flex gap-2">
-                    <Input
+                <div className="border-t border-border p-4 bg-card shrink-0">
+                  <div className="flex gap-2 items-end">
+                    <Textarea
                       ref={inputRef}
                       placeholder="Ask AI: 'Plan my trip to Kashmir' or 'Budget for Tokyo'..."
-                      className="flex-1 focus:outline-teal-500 font-sans text-sm sm:text-base border border-slate-300"
+                      className="flex-1 min-h-[44px] h-[44px] max-h-32 py-3 px-4 resize-none rounded-xl border border-border bg-muted/20 text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary placeholder:text-muted-foreground/60 shadow-sm leading-normal text-sm"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={handleKeyPress}
                     />
                     <Button
-                      className="bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center font-sans disabled:opacity-50"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center w-11 h-11 shrink-0 rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50"
                       onClick={handleSendMessage}
                       disabled={isTyping || !inputText.trim()}
                     >
@@ -1206,8 +1332,8 @@ export default function ChatAssistant() {
 
               {/* 3. SUGGESTED QUESTIONS GRID */}
               <div className="space-y-3">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5 font-sans">
-                  <HelpCircle className="w-5 h-5 text-indigo-500" />
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-1.5 font-sans">
+                  <HelpCircle className="w-5 h-5 text-secondary" />
                   Suggested Questions
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1222,7 +1348,7 @@ export default function ChatAssistant() {
                     <Button
                       key={question}
                       variant="outline"
-                      className="border-slate-300 text-slate-800 hover:bg-slate-50 h-auto py-3 justify-start text-left bg-white font-medium font-sans text-xs sm:text-sm shadow-sm rounded-xl cursor-pointer"
+                      className="border-border text-foreground hover:bg-muted h-auto py-3 justify-start text-left bg-card font-medium font-sans text-xs sm:text-sm shadow-xs rounded-xl cursor-pointer"
                       onClick={() => handleTriggerAIQuery(question)}
                       disabled={isTyping}
                     >
@@ -1232,16 +1358,16 @@ export default function ChatAssistant() {
                 </div>
               </div>
 
-              {/* 4. HACKATHON BONUS: TRENDING DESTINATIONS SECTION */}
+              {/* 4. TRENDING DESTINATIONS SECTION */}
               <div className="space-y-4 pt-2">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5 font-sans">
-                  <TrendingUp className="w-5 h-5 text-orange-500" />
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-1.5 font-sans">
+                  <TrendingUp className="w-5 h-5 text-secondary" />
                   Trending Destinations
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Indian Trending */}
-                  <Card className="border border-slate-200 bg-white p-5 rounded-2xl shadow-sm">
-                    <h4 className="font-bold text-slate-800 text-xs sm:text-sm mb-3 flex items-center gap-1.5 uppercase tracking-wider text-slate-400">
+                  <Card className="border border-border bg-card text-card-foreground p-5 rounded-xl shadow-xs">
+                    <h4 className="font-bold text-xs sm:text-sm mb-3 flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
                       🇮🇳 Popular Indian Escapes
                     </h4>
                     <div className="flex flex-wrap gap-2">
@@ -1249,7 +1375,7 @@ export default function ChatAssistant() {
                         <button
                           key={city}
                           disabled={isTyping}
-                          className="text-xs font-semibold px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-all font-sans cursor-pointer"
+                          className="text-xs font-semibold px-3 py-1.5 bg-muted/40 border border-border rounded-full hover:bg-primary/10 hover:border-primary/20 hover:text-primary transition-all font-sans cursor-pointer"
                           onClick={() => handleTriggerAIQuery(`Recommend attractions and itinerary for ${city}`)}
                         >
                           {city}
@@ -1259,8 +1385,8 @@ export default function ChatAssistant() {
                   </Card>
 
                   {/* International Trending */}
-                  <Card className="border border-slate-200 bg-white p-5 rounded-2xl shadow-sm">
-                    <h4 className="font-bold text-slate-800 text-xs sm:text-sm mb-3 flex items-center gap-1.5 uppercase tracking-wider text-slate-400">
+                  <Card className="border border-border bg-card text-card-foreground p-5 rounded-xl shadow-xs">
+                    <h4 className="font-bold text-xs sm:text-sm mb-3 flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
                       🌍 Popular International Escapes
                     </h4>
                     <div className="flex flex-wrap gap-2">
@@ -1268,7 +1394,7 @@ export default function ChatAssistant() {
                         <button
                           key={city}
                           disabled={isTyping}
-                          className="text-xs font-semibold px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full hover:bg-teal-50 hover:border-teal-200 hover:text-teal-700 transition-all font-sans cursor-pointer"
+                          className="text-xs font-semibold px-3 py-1.5 bg-muted/40 border border-border rounded-full hover:bg-primary/10 hover:border-primary/20 hover:text-primary transition-all font-sans cursor-pointer"
                           onClick={() => handleTriggerAIQuery(`Recommend details and budget for ${city}`)}
                         >
                           {city}
@@ -1283,14 +1409,14 @@ export default function ChatAssistant() {
               <div className="flex gap-3 pt-2">
                 <Button
                   variant="outline"
-                  className="flex-1 border border-slate-300 text-slate-800 hover:bg-slate-50 bg-white font-sans font-medium h-11 rounded-xl shadow-sm cursor-pointer"
+                  className="flex-1 border-border text-foreground hover:bg-muted bg-card font-sans font-semibold h-11 rounded-xl shadow-xs cursor-pointer"
                   onClick={() => toast.success("Chat history successfully exported as text!")}
                 >
                   Export Conversation
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex-1 border border-red-200 text-red-600 hover:bg-red-50 font-sans font-medium h-11 rounded-xl shadow-sm cursor-pointer"
+                  className="flex-1 border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive bg-card font-sans font-semibold h-11 rounded-xl shadow-xs cursor-pointer"
                   onClick={async () => {
                     try {
                       await apiFetch("/api/chat/history", { method: "DELETE" });
