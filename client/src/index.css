@@ -56,29 +56,29 @@
   --chart-4: #0f766e;
   --chart-5: #115e59;
   --radius: 0.65rem;
-  --background: oklch(0.99 0.003 80); /* Warm soft neutral white */
-  --foreground: oklch(0.2 0.01 80);    /* Deep charcoal */
-  --card: oklch(1 0.002 80);
-  --card-foreground: oklch(0.2 0.01 80);
-  --popover: oklch(1 0.002 80);
-  --popover-foreground: oklch(0.2 0.01 80);
-  --secondary: #f97316; /* Warm Sunset Orange */
+  --background: #f8fafc; /* Premium Slate 50 background */
+  --foreground: #0f172a; /* Premium Slate 900 foreground */
+  --card: #ffffff; /* Pure white cards */
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --secondary: #f97316; /* Sunset Orange */
   --secondary-foreground: #fff7ed;
-  --muted: oklch(0.96 0.005 80);
-  --muted-foreground: oklch(0.5 0.01 80);
-  --accent: #84cc16; /* Soft Sage Green */
+  --muted: #f1f5f9; /* Slate 100 */
+  --muted-foreground: #64748b; /* Slate 500 */
+  --accent: #84cc16; /* Sage Green */
   --accent-foreground: #f7fee7;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.005 80);
-  --input: oklch(0.92 0.005 80);
-  --ring: oklch(0.443 0.11 180.7);
-  --sidebar: oklch(1 0.002 80);
-  --sidebar-foreground: oklch(0.2 0.01 80);
-  --sidebar-accent: oklch(0.96 0.005 80);
-  --sidebar-accent-foreground: oklch(0.2 0.01 80);
-  --sidebar-border: oklch(0.92 0.005 80);
-  --sidebar-ring: oklch(0.443 0.11 180.7);
+  --border: #e2e8f0; /* Slate 200 */
+  --input: #e2e8f0;
+  --ring: #0d9488;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #0d9488;
 }
 
 .dark {
@@ -216,4 +216,126 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+}
+
+/* Premium Light Mode Style Enhancements */
+html:not(.dark) {
+  background-color: #f8fafc;
+}
+
+/* Card layout polishes (only light mode) */
+html:not(.dark) [data-slot="card"],
+html:not(.dark) .bg-card {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 4px 20px -2px rgba(148, 163, 184, 0.06), 0 2px 8px -1px rgba(148, 163, 184, 0.04) !important;
+  border-radius: 1rem !important;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.22s ease !important;
+}
+
+html:not(.dark) [data-slot="card"]:hover,
+html:not(.dark) .bg-card:hover {
+  box-shadow: 0 16px 36px -4px rgba(148, 163, 184, 0.12), 0 4px 16px -2px rgba(148, 163, 184, 0.08) !important;
+  border-color: rgba(203, 213, 225, 0.9) !important;
+}
+
+/* Button enhancements (micro-interactions) only in light mode */
+html:not(.dark) [data-slot="button"],
+html:not(.dark) button.inline-flex {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+html:not(.dark) [data-slot="button"]:active,
+html:not(.dark) button.inline-flex:active {
+  transform: scale(0.97) !important;
+}
+
+/* Primary buttons gradient styling */
+html:not(.dark) .bg-teal-600,
+html:not(.dark) [data-slot="button"].bg-primary {
+  background: linear-gradient(135deg, #0d9488, #0f766e) !important;
+  border: none !important;
+  box-shadow: 0 2px 4px 0 rgba(13, 148, 136, 0.15) !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) .bg-teal-600:hover,
+html:not(.dark) [data-slot="button"].bg-primary:hover {
+  background: linear-gradient(135deg, #115e59, #0f766e) !important;
+  box-shadow: 0 4px 12px 0 rgba(13, 148, 136, 0.25) !important;
+}
+
+/* Forms & inputs: interactive focus states */
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.2s ease !important;
+  border-radius: 0.5rem !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) textarea:focus,
+html:not(.dark) select:focus {
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.08) !important;
+  outline: none !important;
+}
+
+/* Modals overlays & dialog polishes */
+html:not(.dark) [data-slot="dialog-content"],
+html:not(.dark) .bg-background\/80 {
+  backdrop-filter: blur(8px) !important;
+}
+
+html:not(.dark) [data-slot="dialog-content"] {
+  background-color: #ffffff !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15) !important;
+}
+
+/* Tables: modern clean headers and soft zebra */
+html:not(.dark) table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+html:not(.dark) th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding: 1rem !important;
+}
+
+html:not(.dark) td {
+  padding: 1rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+html:not(.dark) tr:hover td {
+  background-color: #f8fafc !important;
+}
+
+/* Typography, layouts and scrollbars */
+html:not(.dark) .text-muted-foreground {
+  color: #64748b !important;
+}
+
+html:not(.dark) .text-foreground {
+  color: #0f172a !important;
+}
+
+html:not(.dark) ::-webkit-scrollbar-track {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1 !important;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8 !important;
 }

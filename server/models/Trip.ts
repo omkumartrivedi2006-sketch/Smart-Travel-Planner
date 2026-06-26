@@ -22,6 +22,7 @@ export interface ITrip extends Document {
   transportPreference: "car" | "train" | "flight";
   travelType: "solo" | "couple" | "family" | "friends";
   budget?: mongoose.Types.ObjectId;
+  status: "planned" | "ongoing" | "completed";
   itinerary: IItineraryDay[];
   createdAt: Date;
   updatedAt: Date;
@@ -80,6 +81,11 @@ const TripSchema: Schema<ITrip> = new Schema(
       type: String,
       enum: ["solo", "couple", "family", "friends"],
       default: "solo",
+    },
+    status: {
+      type: String,
+      enum: ["planned", "ongoing", "completed"],
+      default: "planned",
     },
     budget: {
       type: Schema.Types.ObjectId,

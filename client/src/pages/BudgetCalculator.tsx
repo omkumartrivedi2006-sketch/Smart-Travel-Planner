@@ -182,7 +182,58 @@ export default function BudgetCalculator() {
   };
 
   const handleDownload = () => {
-    toast.success("Budget plan downloaded as CSV!");
+    try {
+      const selectedDest = destinationsList.find(d => d._id === selectedDestId);
+      const destName = selectedDest ? selectedDest.name : "Unknown Destination";
+      const countryName = selectedDest?.country || "";
+      const fullDest = countryName ? `${destName}, ${countryName}` : destName;
+
+      // Headers
+      const headers = ["Category", "Amount (₹)", "Percentage"];
+      
+      // Rows
+      const rows = budgetItems.map(item => [
+        `"${item.category}"`,
+        item.amount,
+        `"${item.percentage}%"`
+      ]);
+      
+      // Add summary details
+      const summaryRows = [
+        [],
+        ["Trip Details Summary"],
+        ["Destination", `"${fullDest.replace(/"/g, '""')}"`],
+        ["Duration (Days)", duration],
+        ["Number of Travelers", travelers],
+        ["Accommodation Type", `"${accommodationType}"`],
+        ["Food Preference", `"${foodPreference}"`],
+        ["Transport Preference", `"${transportPreference}"`],
+        ["Total Estimated Budget (₹)", totalBudget]
+      ];
+      
+      const allRows = [
+        headers.join(","),
+        ...rows.map(r => r.join(",")),
+        ...summaryRows.map(r => r.join(","))
+      ].join("\n");
+      
+      const blob = new Blob([allRows], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const cleanName = destName.replace(/\s+/g, "_").toLowerCase();
+      link.setAttribute("download", `budget-plan-${cleanName}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Budget plan downloaded as CSV successfully!");
+    } catch (err: any) {
+      console.error("Failed to export budget CSV:", err);
+      toast.error("Failed to download CSV. Please try again.");
+    }
   };
 
   const COLORS = ["#0f766e", "#0891b2", "#06b6d4", "#14b8a6", "#2dd4bf"];

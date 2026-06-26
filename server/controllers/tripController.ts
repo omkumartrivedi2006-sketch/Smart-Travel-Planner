@@ -105,6 +105,7 @@ export async function createTrip(
       hotelPreference = "mid-range",
       transportPreference = "car",
       travelType = "solo",
+      status = "planned",
       originLatitude,
       originLongitude,
     } = req.body;
@@ -157,6 +158,7 @@ export async function createTrip(
       travelType,
       budget: newBudget._id,
       itinerary,
+      status,
     });
 
     // 5. Link Trip to Budget
@@ -281,6 +283,7 @@ export async function updateTrip(
       hotelPreference,
       transportPreference,
       travelType,
+      status,
       originLatitude,
       originLongitude,
     } = req.body;
@@ -303,7 +306,6 @@ export async function updateTrip(
       isTransportPrefChanged ||
       isTravelTypeChanged;
 
-    // Update basic trip fields
     if (destinationId) trip.destination = destinationId;
     if (startDate) trip.startDate = new Date(startDate);
     if (endDate) trip.endDate = new Date(endDate);
@@ -311,6 +313,7 @@ export async function updateTrip(
     if (hotelPreference) trip.hotelPreference = hotelPreference;
     if (transportPreference) trip.transportPreference = transportPreference;
     if (travelType) trip.travelType = travelType;
+    if (status) trip.status = status;
 
     if (needsRecalculation) {
       const destination = await Destination.findById(trip.destination);

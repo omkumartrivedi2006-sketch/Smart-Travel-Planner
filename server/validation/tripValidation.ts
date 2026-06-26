@@ -13,6 +13,7 @@ export const createTripSchema = z.object({
     hotelPreference: z.enum(hotelPreferences).optional().default("mid-range"),
     transportPreference: z.enum(transportPreferences).optional().default("car"),
     travelType: z.enum(travelTypes).optional().default("solo"),
+    status: z.enum(["planned", "ongoing", "completed"]).optional().default("planned"),
     originLatitude: z.number().min(-90).max(90).optional(),
     originLongitude: z.number().min(-180).max(180).optional(),
   }).refine((data) => data.endDate >= data.startDate, {
@@ -30,6 +31,7 @@ export const updateTripSchema = z.object({
     hotelPreference: z.enum(hotelPreferences).optional(),
     transportPreference: z.enum(transportPreferences).optional(),
     travelType: z.enum(travelTypes).optional(),
+    status: z.enum(["planned", "ongoing", "completed"]).optional(),
   }),
 });
 

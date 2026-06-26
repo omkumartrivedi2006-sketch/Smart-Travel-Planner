@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Edit2, Trash2, Share2, Calendar, MapPin, Loader2, Sun, Moon } from "lucide-react";
+import { Edit2, Trash2, Share2, Calendar, MapPin, Loader2, Sun, Moon, Download, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
@@ -41,6 +41,7 @@ export default function SavedTrips() {
   const { location } = useLocationData();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [filter, setFilter] = useState("All");
 
   // Load trips from API
@@ -59,12 +60,16 @@ export default function SavedTrips() {
           // Process status for each trip dynamically
           const processed = validTrips.map((t: any) => {
             if (!t) return null;
-            const now = new Date();
-            const start = t.startDate ? new Date(t.startDate) : now;
-            const end = t.endDate ? new Date(t.endDate) : now;
-            let computedStatus = "Upcoming";
-            if (end < now) {
-              computedStatus = "Completed";
+            let computedStatus = t.status || "planned";
+            if (computedStatus !== "completed") {
+              const now = new Date();
+              const start = t.startDate ? new Date(t.startDate) : now;
+              const end = t.endDate ? new Date(t.endDate) : now;
+              start.setHours(0, 0, 0, 0);
+              end.setHours(23, 59, 59, 999);
+              if (now >= start && now <= end) {
+                computedStatus = "ongoing";
+              }
             }
             return {
               ...t,
@@ -83,6 +88,91 @@ export default function SavedTrips() {
     }
     fetchTrips();
   }, []);
+
+  const handleCompleteTrip = async (id: string, name: string) => {
+    if (!id) return;
+    try {
+      await apiFetch(`/api/trips/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status: "completed" }),
+      });
+      setTrips(prev => prev.map(t => t?._id === id ? { ...t, status: "completed" } : t));
+      toast.success(`Trip "${name}" marked as completed!`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to mark trip as completed. Please try again.");
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    setIsExporting(true);
+    try {
+      const headers = [
+        "Trip Name",
+        "Destination",
+        "Start Date",
+        "End Date",
+        "Budget (₹)",
+        "Duration",
+        "Number of Travelers",
+        "Trip Status",
+        "Created Date"
+      ];
+      
+      const rows = trips.map(trip => {
+        const destName = trip.destination?.name || "Unknown";
+        const country = trip.destination?.country || "";
+        const destinationStr = country ? `${destName}, ${country}` : destName;
+        
+        const start = trip.startDate ? new Date(trip.startDate) : null;
+        const end = trip.endDate ? new Date(trip.endDate) : null;
+        const durationDays = start && end 
+          ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1) 
+          : 0;
+        
+        const budgetVal = trip.budget?.totalEstimate ?? 0;
+        const statusVal = trip.status || "planned";
+        const displayStatus = statusVal.charAt(0).toUpperCase() + statusVal.slice(1);
+        
+        const createdStr = (trip as any).createdAt 
+          ? new Date((trip as any).createdAt).toISOString().split('T')[0] 
+          : "N/A";
+        const startStr = start ? start.toISOString().split('T')[0] : "N/A";
+        const endStr = end ? end.toISOString().split('T')[0] : "N/A";
+        
+        return [
+          `"Trip to ${destName.replace(/"/g, '""')}"`,
+          `"${destinationStr.replace(/"/g, '""')}"`,
+          startStr,
+          endStr,
+          budgetVal,
+          `"${durationDays} Day${durationDays !== 1 ? "s" : ""}"`,
+          trip.travelers || 1,
+          displayStatus,
+          createdStr
+        ];
+      });
+      
+      const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const today = new Date().toISOString().split('T')[0];
+      link.setAttribute("download", `trip-history-${today}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Trip history downloaded as CSV successfully!");
+    } catch (err: any) {
+      console.error("CSV generation failed:", err);
+      toast.error("Failed to download CSV. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleDeleteTrip = async (id: string, name: string) => {
     if (!id) return;
@@ -115,7 +205,7 @@ export default function SavedTrips() {
     .filter((trip) => trip !== null)
     .filter((trip) => {
       if (filter === "All") return true;
-      return (trip.status ?? "Upcoming").toLowerCase() === filter.toLowerCase();
+      return (trip.status ?? "planned").toLowerCase() === filter.toLowerCase();
     });
 
   return (
@@ -129,12 +219,27 @@ export default function SavedTrips() {
             </Button>
             <div className="flex items-center justify-between">
               <h1 className="text-3xl font-bold text-foreground">My Trips</h1>
-              <Button
-                className="bg-teal-600 hover:bg-teal-700 text-white font-semibold"
-                onClick={() => navigate("/planner")}
-              >
-                + Create New Trip
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleDownloadCSV}
+                  disabled={isExporting || trips.length === 0}
+                  variant="outline"
+                  className="border-border text-foreground hover:bg-muted font-semibold flex items-center gap-1.5"
+                >
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  {isExporting ? "Exporting..." : "Download CSV"}
+                </Button>
+                <Button
+                  className="bg-teal-600 hover:bg-teal-700 text-white font-semibold"
+                  onClick={() => navigate("/planner")}
+                >
+                  + Create New Trip
+                </Button>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 self-end mb-1">
@@ -176,7 +281,7 @@ export default function SavedTrips() {
           <div className="space-y-6">
             {/* Filter Tabs */}
             <div className="flex flex-wrap gap-2 mb-8">
-              {["All", "Upcoming", "Completed"].map((f) => {
+              {["All", "Planned", "Ongoing", "Completed"].map((f) => {
                 const isActive = filter === f;
                 return (
                   <Button
@@ -233,23 +338,45 @@ export default function SavedTrips() {
                         </p>
                         <div className="mt-3">
                           <span className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                            (trip.status ?? "Upcoming") === "Upcoming"
-                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                              : "bg-green-500/10 text-green-600 dark:text-green-400"
+                            (trip.status ?? "planned") === "completed"
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              : (trip.status ?? "planned") === "ongoing"
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
                           }`}>
-                            {trip.status ?? "Upcoming"}
+                            {trip.status ?? "planned"}
                           </span>
                         </div>
                       </div>
 
                       {/* Actions */}
                       <div className="flex gap-2 justify-end md:justify-start" onClick={(e) => e.stopPropagation()}>
+                        {trip.status !== "completed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Mark as Completed"
+                            className="border-emerald-250 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 dark:border-emerald-900/50 dark:hover:bg-emerald-950/30"
+                            onClick={() => handleCompleteTrip(trip._id, tripName)}
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
-                          title="Edit Trip"
-                          className="border-border text-foreground hover:bg-muted"
-                          onClick={() => handleEditTrip(trip)}
+                          title={trip.status === "completed" ? "Editing Disabled (Completed)" : "Edit Trip"}
+                          className={`border-border text-foreground hover:bg-muted ${
+                            trip.status === "completed" ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                          onClick={() => {
+                            if (trip.status !== "completed") {
+                              handleEditTrip(trip);
+                            } else {
+                              toast.info("Cannot edit a completed trip");
+                            }
+                          }}
+                          disabled={trip.status === "completed"}
                         >
                           <Edit2 className="w-4 h-4" />
                         </Button>

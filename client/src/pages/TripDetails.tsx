@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useLocation, useParams } from "wouter";
-import { Calendar, IndianRupee, MapPin, Download, Share2, Edit2, ShieldAlert, Loader2, Sun, Moon } from "lucide-react";
+import { Calendar, IndianRupee, MapPin, Download, Share2, Edit2, ShieldAlert, Loader2, Sun, Moon, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
@@ -41,6 +41,7 @@ interface Trip {
       cost: number;
     }[];
   }[];
+  status?: string;
 }
 
 export default function TripDetails() {
@@ -370,6 +371,20 @@ export default function TripDetails() {
     }
   };
 
+  const handleCompleteTrip = async () => {
+    if (!trip?._id) return;
+    try {
+      await apiFetch(`/api/trips/${trip._id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status: "completed" }),
+      });
+      setTrip(prev => prev ? { ...prev, status: "completed" } : null);
+      toast.success("Trip marked as completed!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to mark trip as completed. Please try again.");
+    }
+  };
+
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success("Link to this trip itinerary copied to clipboard!");
@@ -381,7 +396,16 @@ export default function TripDetails() {
   };
 
   const now = new Date();
-  const tripStatus = end < now ? "Completed" : "Upcoming";
+  let tripStatus = trip?.status || "planned";
+  if (tripStatus !== "completed") {
+    const sDate = new Date(trip.startDate);
+    const eDate = new Date(trip.endDate);
+    sDate.setHours(0, 0, 0, 0);
+    eDate.setHours(23, 59, 59, 999);
+    if (now >= sDate && now <= eDate) {
+      tripStatus = "ongoing";
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
@@ -422,10 +446,12 @@ export default function TripDetails() {
                     {trip?.destination?.name ?? "Unknown Destination"}, {trip?.destination?.country || ""}
                   </p>
                 </div>
-                <span className={`px-4 py-2 rounded-full font-semibold ${
-                  tripStatus === "Upcoming"
-                    ? "bg-blue-500/10 text-blue-600"
-                    : "bg-green-500/10 text-green-600"
+                <span className={`px-4 py-2 rounded-full font-semibold text-xs uppercase tracking-wider ${
+                  tripStatus === "completed"
+                    ? "bg-emerald-500/10 text-emerald-600"
+                    : tripStatus === "ongoing"
+                    ? "bg-amber-500/10 text-amber-600"
+                    : "bg-blue-500/10 text-blue-600"
                 }`}>
                   {tripStatus}
                 </span>
@@ -447,9 +473,19 @@ export default function TripDetails() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                {tripStatus !== "completed" && (
+                  <Button
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white min-w-[150px]"
+                    onClick={handleCompleteTrip}
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Mark as Completed
+                  </Button>
+                )}
                 <Button
                   className="flex-1 bg-teal-600 hover:bg-teal-700 text-white min-w-[120px]"
                   onClick={handleEdit}
+                  disabled={tripStatus === "completed"}
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
                   Edit Trip

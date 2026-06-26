@@ -123,9 +123,8 @@ export default function UserProfile() {
         const tripsRes = await apiFetch("/api/trips");
         if (tripsRes?.data?.trips) {
           const trips = tripsRes.data.trips;
-          planned = trips.length;
-          const now = new Date();
-          completed = trips.filter((t: any) => new Date(t.endDate) < now).length;
+          planned = trips.filter((t: any) => t.status !== "completed").length;
+          completed = trips.filter((t: any) => t.status === "completed").length;
         }
       } catch (err) {
         console.error("Failed to load user trips", err);
