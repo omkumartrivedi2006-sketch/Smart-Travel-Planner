@@ -8,7 +8,7 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm install && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+    buildCommand: "npm install && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && cp server/swagger.json dist/swagger.json"
     startCommand: node dist/index.js
     healthCheckPath: /api/auth/health
     envVars:

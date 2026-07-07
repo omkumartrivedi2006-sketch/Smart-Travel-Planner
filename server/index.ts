@@ -115,29 +115,44 @@ async function startServer() {
 
   // Swagger Documentation Route
   try {
-    const swaggerDocument = JSON.parse(
-      fs.readFileSync(new URL("./swagger.json", import.meta.url), "utf8")
-    );
+    // In production on Render, swagger.json sits next to index.js in dist/
+    // In development, it sits in server/
+    const swaggerPath = process.env.NODE_ENV === "production"
+      ? new URL("./swagger.json", import.meta.url)
+      : new URL("./swagger.json", import.meta.url);
+    const swaggerDocument = JSON.parse(fs.readFileSync(swaggerPath, "utf8"));
     app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   } catch (err) {
-    logger.error("Failed to load swagger.json:", err);
+    logger.warn("swagger.json not found — API docs disabled.");
   }
 
   // 5. API 404 Handler (ensures unknown /api requests don't fall back to client HTML)
   app.all("/api/*", notFoundHandler);
 
-  // 6. Serve static files from dist/public in production
+  // 6. Serve static files from dist/public if it exists (local full-stack mode)
+  //    On Render (API-only), dist/public won't exist — frontend is on GitHub Pages.
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "public")
       : path.resolve(__dirname, "..", "dist", "public");
 
-  app.use(express.static(staticPath));
-
-  // 7. Handle client-side routing fallback - serve index.html for all other routes
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(staticPath, "index.html"));
-  });
+  if (fs.existsSync(staticPath)) {
+    app.use(express.static(staticPath));
+    // 7. Handle client-side routing fallback
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(staticPath, "index.html"));
+    });
+  } else {
+    // Running as API-only (Render deployment) — frontend is on GitHub Pages
+    app.get("/", (_req, res) => {
+      res.json({
+        status: "ok",
+        message: "Smart Travel Planner API",
+        docs: "/api-docs",
+        frontend: "https://omkumartrivedi2006-sketch.github.io/Smart-Travel-Planner/",
+      });
+    });
+  }
 
   // 8. Global Centralized Error Handling Middleware
   app.use(errorHandler);
