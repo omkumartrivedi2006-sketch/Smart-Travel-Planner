@@ -1,5 +1,13 @@
 import { toast } from "sonner";
 
+// When deployed to GitHub Pages, VITE_API_URL must point to the Render.com backend.
+// Locally, it's empty and the Vite dev proxy handles /api/* → localhost:5000.
+const API_BASE = (import.meta.env.VITE_API_URL as string) || "";
+
+export function apiUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -70,9 +78,12 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     headers.set("Content-Type", "application/json");
   }
 
+  // Prefix relative /api paths with the configured backend base URL
+  const fullUrl = url.startsWith("/api") ? apiUrl(url) : url;
+
   let response: Response;
   try {
-    response = await fetch(url, { ...options, headers });
+    response = await fetch(fullUrl, { ...options, headers });
   } catch (err) {
     console.error("Network error fetching API:", err);
     throw new Error("Network error. Please check if backend server is running.");
@@ -80,10 +91,13 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
   if (response.status === 401) {
     const rToken = getRefreshToken();
+    // Build login path respecting Vite base (e.g. /Smart-Travel-Planner/ on GH Pages)
+    const base = import.meta.env.BASE_URL || "/";
+    const loginPath = `${base}login`;
     if (!rToken) {
       clearSession();
-      if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
-        window.location.href = "/login";
+      if (!window.location.pathname.endsWith("/login") && !window.location.pathname.endsWith("/register")) {
+        window.location.href = loginPath;
       }
       throw new Error("Session expired. Please log in again.");
     }
@@ -91,7 +105,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     if (!isRefreshing) {
       isRefreshing = true;
       try {
-        const refreshRes = await fetch("/api/auth/refresh", {
+        const refreshRes = await fetch(apiUrl("/api/auth/refresh"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refreshToken: rToken }),
@@ -110,13 +124,13 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
         } else {
           isRefreshing = false;
           clearSession();
-          window.location.href = "/login";
+          window.location.href = loginPath;
           throw new Error("Session expired. Please log in again.");
         }
       } catch (err) {
         isRefreshing = false;
         clearSession();
-        window.location.href = "/login";
+        window.location.href = loginPath;
         throw err;
       }
     }

@@ -202,10 +202,15 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
+// In production/CI builds, skip Manus-specific plugins that require local environment
+const isDev = process.env.NODE_ENV !== "production" && !process.env.CI;
+const plugins = isDev
+  ? [react(), tailwindcss(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()]
+  : [react(), tailwindcss()];
 
 export default defineConfig({
   plugins,
+  base: process.env.CI ? "/Smart-Travel-Planner/" : "/",
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

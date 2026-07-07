@@ -1,0 +1,27 @@
+# Render.com deployment configuration
+# This file auto-configures the backend service on Render.com
+# See: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: smart-travel-planner-api
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+    startCommand: node dist/index.js
+    healthCheckPath: /api/auth/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Add these in the Render dashboard manually (keep secrets out of git):
+      # MONGODB_URI
+      # JWT_SECRET
+      # JWT_ACCESS_SECRET
+      # JWT_REFRESH_SECRET
+      # ALLOWED_ORIGINS (set to: https://omkumartrivedi2006-sketch.github.io)
+      # OPENWEATHER_API_KEY
+      # GEOAPIFY_API_KEY
+      # GROQ_API_KEY

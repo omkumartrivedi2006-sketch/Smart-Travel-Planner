@@ -53,7 +53,11 @@ async function startServer() {
   
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-    : ["http://localhost:3000", "http://127.0.0.1:3000"];
+    : [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://omkumartrivedi2006-sketch.github.io",
+      ];
 
   const corsOptions = {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -92,6 +96,11 @@ async function startServer() {
     legacyHeaders: false,
   });
   app.use("/api", limiter);
+
+  // Health check endpoint (used by Render.com to verify service is alive)
+  app.get("/api/auth/health", (_req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
 
   // 4. API Routes
   app.use("/api/auth", authRoutes);
