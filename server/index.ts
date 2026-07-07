@@ -48,6 +48,14 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // Health check — MUST be before rate limiter so Render can always reach it
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // 2. Security & Utility Middlewares
   app.use(helmet({ contentSecurityPolicy: false })); // Let CSP be false so it doesn't conflict with Vite client assets in development
   
@@ -96,11 +104,6 @@ async function startServer() {
     legacyHeaders: false,
   });
   app.use("/api", limiter);
-
-  // Health check endpoint (used by Render.com to verify service is alive)
-  app.get("/api/auth/health", (_req, res) => {
-    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-  });
 
   // 4. API Routes
   app.use("/api/auth", authRoutes);
