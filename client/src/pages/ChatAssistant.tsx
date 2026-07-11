@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { DestinationCard } from "@/components/DestinationCard";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
+import { DestinationImage } from "@/components/DestinationImage";
 import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 // =============================================================================
@@ -497,6 +499,21 @@ export default function ChatAssistant() {
   const [sessionId, setSessionId] = useState<string>("");
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [dbDestinations, setDbDestinations] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadDestinations() {
+      try {
+        const res = await apiFetch("/api/destinations?limit=100");
+        if (res && res.data && res.data.destinations) {
+          setDbDestinations(res.data.destinations);
+        }
+      } catch (e) {
+        console.error("Failed to load destinations for matching", e);
+      }
+    }
+    loadDestinations();
+  }, []);
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatCardRef = useRef<HTMLDivElement>(null);
@@ -1089,61 +1106,22 @@ export default function ChatAssistant() {
                         {/* --- Adaptive Card rendering based on message type --- */}
                         {msg.sender === "ai" && msg.type === "destinations" && msg.destinations && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 w-full max-w-[95%]">
-                            {msg.destinations.map((dest) => (
-                              <Card
-                                key={dest.id}
-                                onClick={() => navigate(`/destinations/${dest.id >= 200 ? dest.id - 200 : dest.id - 100}`)}
-                                className="border border-border bg-card text-card-foreground shadow-sm rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5"
-                              >
-                                <div className="h-32 overflow-hidden relative">
-                                  <img
-                                    src={dest.image}
-                                    alt={dest.name}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                                    }}
-                                  />
-                                  <div className="absolute top-2 right-2 bg-background/95 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-[10px] font-bold text-foreground border border-border shadow-xs">
-                                    {dest.category}
-                                  </div>
-                                </div>
-                                <div className="p-4 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="font-bold text-foreground text-sm flex items-center gap-1">
-                                      <MapPin className="w-3.5 h-3.5 text-primary" />
-                                      {dest.name}
-                                    </h4>
-                                    <div className="flex items-center gap-1 text-[11px] font-bold text-amber-500">
-                                      <Star className="w-3 h-3 fill-amber-500" />
-                                      {dest.rating}
-                                    </div>
-                                  </div>
-                                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{dest.description}</p>
-                                  <div className="text-[11px] font-semibold text-muted-foreground bg-muted/65 p-2 rounded">
-                                    <div>💰 Budget: <span className="text-primary font-bold">{dest.budgetRange}</span></div>
-                                    <div>🌤️ Best Time: <span className="text-foreground">{dest.bestTime}</span></div>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {dest.tags.slice(0, 3).map(tag => (
-                                      <span key={tag} className="text-[9px] bg-primary/10 text-primary border border-primary/20 font-bold px-1.5 py-0.5 rounded">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-sans text-xs h-8 mt-2"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/planner?destination=${encodeURIComponent(dest.name)}`);
-                                    }}
-                                  >
-                                    Plan Trip Here
-                                  </Button>
-                                </div>
-                              </Card>
-                            ))}
+                            {msg.destinations.map((dest) => {
+                              const matchingDbDest = dbDestinations.find(
+                                (d) => d.name.toLowerCase() === dest.name.toLowerCase()
+                              );
+                              const mappedDest = {
+                                ...dest,
+                                _id: matchingDbDest ? matchingDbDest._id : undefined,
+                              };
+                              return (
+                                <DestinationCard
+                                  key={dest.id}
+                                  dest={mappedDest}
+                                  variant="chat"
+                                />
+                              );
+                            })}
                           </div>
                         )}
 

@@ -1481,8 +1481,35 @@ function expandDestination(base: any) {
   const shortDescription = base.shortDescription || `Visit the stunning destination of ${base.name} in ${base.country}.`;
   const fullDescription = `${base.name} is a world-renowned destination located in ${base.country}. Famous for its ${template.famousFor.toLowerCase()} It attracts thousands of travelers every year looking to experience activities like ${template.activities.slice(0, 3).join(", ").toLowerCase()} and explore landmarks like ${template.topAttractions.slice(0, 2).join(" and ")}. Plan your trip to ${base.name} today for a memorable vacation.`;
 
+  const slug = base.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const coordinates = { latitude: base.latitude, longitude: base.longitude };
+  const bestSeason = "October - March";
+  const duration = template.durationRecommendation;
+  const budget = base.averageBudget;
+  const description = fullDescription;
+
+  const hotels = [
+    `Hotel ${base.name} Grand`,
+    `Resort ${base.name} View`,
+    `${base.name} Luxury Suites`,
+  ];
+  const restaurants = [
+    `${base.name} Local Diner`,
+    `The Green Cafe ${base.name}`,
+    `Spicy Flavors of ${base.name}`,
+  ];
+  const weather = [
+    { day: "Mon", temp: "28°C", condition: "Sunny", icon: "☀️" },
+    { day: "Tue", temp: "27°C", condition: "Partly Cloudy", icon: "⛅" },
+    { day: "Wed", temp: "29°C", condition: "Sunny", icon: "☀️" },
+    { day: "Thu", temp: "26°C", condition: "Rainy", icon: "🌧️" },
+    { day: "Fri", temp: "28°C", condition: "Clear", icon: "☀️" }
+  ];
+  const mapLocation = `${base.city || base.name}, ${base.country}`;
+
   return {
     name: base.name,
+    slug,
     city: base.city || base.name,
     state: base.state || base.country,
     country: base.country,
@@ -1491,10 +1518,14 @@ function expandDestination(base: any) {
     categories: [base.category.toLowerCase()],
     shortDescription,
     fullDescription,
-    bestTimeToVisit: "October - March",
+    description,
+    bestTimeToVisit: bestSeason,
+    bestSeason,
     averageBudget: base.averageBudget,
     averageCost: base.averageBudget,
-    durationRecommendation: template.durationRecommendation,
+    budget,
+    durationRecommendation: duration,
+    duration,
     weatherInformation: template.weatherInformation,
     famousFor: template.famousFor,
     topAttractions: template.topAttractions,
@@ -1509,10 +1540,17 @@ function expandDestination(base: any) {
     travelTips: template.travelTips,
     latitude: base.latitude,
     longitude: base.longitude,
-    images: defaultImages,
-    image: defaultImages[0],
+    coordinates,
+    images: [],
+    image: "",
     rating: base.rating,
-    popularPlaces: template.topAttractions
+    popularPlaces: template.topAttractions,
+    hotels,
+    restaurants,
+    weather,
+    gallery: [],
+    heroImage: "",
+    mapLocation
   };
 }
 

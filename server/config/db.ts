@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 import { logger } from "../utils/logger";
+import { MongoMemoryServer } from "mongodb-memory-server";
 
 let listenersRegistered = false;
+let mongod: MongoMemoryServer | null = null;
 
 function registerConnectionListeners() {
   if (listenersRegistered) return;
@@ -26,13 +28,20 @@ function registerConnectionListeners() {
 }
 
 export async function connectDB(): Promise<void> {
-  const mongodbUri = process.env.MONGODB_URI;
+  let mongodbUri = process.env.MONGODB_URI;
 
   registerConnectionListeners();
 
   if (!mongodbUri || mongodbUri.trim() === "") {
-    logger.error("FATAL: Database initialization failed. MONGODB_URI environment variable is missing or empty.");
-    process.exit(1);
+    logger.warn("MONGODB_URI environment variable is missing or empty. Starting zero-config in-memory MongoDB...");
+    try {
+      mongod = await MongoMemoryServer.create();
+      mongodbUri = mongod.getUri();
+      logger.info(`In-memory MongoDB successfully started at: ${mongodbUri}`);
+    } catch (err: any) {
+      logger.error("FATAL: Failed to spin up in-memory MongoDB server:", err);
+      process.exit(1);
+    }
   }
 
   if (!mongodbUri.startsWith("mongodb://") && !mongodbUri.startsWith("mongodb+srv://")) {
@@ -40,12 +49,12 @@ export async function connectDB(): Promise<void> {
     process.exit(1);
   }
 
-  if (mongodbUri.includes("localhost") || mongodbUri.includes("127.0.0.1")) {
-    logger.warn("SECURITY WARNING: MONGODB_URI points to a local address (localhost/127.0.0.1). Ensure this is intentional.");
+  if (mongodbUri.includes("localhost") || mongodbUri.includes("127.0.0.1") || mongod) {
+    logger.warn("SECURITY WARNING: MONGODB_URI points to a local or in-memory address. Ensure this is intentional.");
   }
 
   const isAtlas = mongodbUri.startsWith("mongodb+srv://");
-  logger.info(`Database Mode: ${isAtlas ? "MongoDB Atlas Cloud" : "Local MongoDB"} instance`);
+  logger.info(`Database Mode: ${isAtlas ? "MongoDB Atlas Cloud" : (mongod ? "In-Memory MongoDB" : "Local MongoDB")} instance`);
 
   const maxRetries = 5;
   const retryDelayMs = 5000;
@@ -73,4 +82,9 @@ export async function connectDB(): Promise<void> {
 
 export async function closeDB(): Promise<void> {
   await mongoose.disconnect();
+  if (mongod) {
+    await mongod.stop();
+    logger.info("In-memory MongoDB Server stopped.");
+  }
 }
+

@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { DestinationImage } from "@/components/DestinationImage";
+import { DestinationCard } from "@/components/DestinationCard";
 import { apiFetch, clearSession } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -57,10 +59,19 @@ export default function Home() {
         if (res && res.data && res.data.destinations) {
           const mapped = res.data.destinations.map((d: any) => ({
             id: d._id,
-            name: `${d.name}, ${d.country}`,
-            image: d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+            _id: d._id,
+            name: d.name,
+            country: d.country,
+            image: d.image || (d.images && d.images[0]) || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
             category: d.category,
-            budget: d.averageCost < 50 ? "Budget" : d.averageCost <= 150 ? "Mid-range" : "Premium",
+            categories: Array.isArray(d.categories) && d.categories.length > 0
+              ? d.categories
+              : [d.category?.toLowerCase() || "city"],
+            rating: d.rating || 4.5,
+            averageCost: d.averageCost || d.averageBudget || 0,
+            description: d.shortDescription || d.description || "",
+            latitude: d.latitude,
+            longitude: d.longitude,
           }));
           setPopularDestinations(mapped);
         }
@@ -337,39 +348,11 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {popularDestinations.map((dest) => (
-            <Card
+            <DestinationCard
               key={dest.id}
-              className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border border-border bg-card group"
-              onClick={() => navigate(`/destinations/${dest.id}`)}
-            >
-              <div className="relative h-48 overflow-hidden">
-                <img
-                  src={dest.image}
-                  alt={dest.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) => {
-                    e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                  }}
-                />
-                <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-white">
-                  {dest.category}
-                </div>
-              </div>
-              <div className="p-6">
-                <h4 className="text-xl font-bold text-card-foreground mb-2">{dest.name}</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground font-semibold">{dest.budget}</span>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-4 h-4 fill-orange-400 text-orange-400"
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Card>
+              dest={dest}
+              variant="home"
+            />
           ))}
         </div>
       </section>

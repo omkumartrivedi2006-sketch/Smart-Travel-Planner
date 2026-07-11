@@ -7,9 +7,10 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { apiFetch, clearSession } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
-import { WORLD_CITIES } from "@/data/worldCities";
 import { useLocationData } from "@/contexts/LocationContext";
 import { LocationNavbarButton } from "@/components/LocationNavbarButton";
+import { DestinationCard } from "@/components/DestinationCard";
+import { WORLD_CITIES } from "@/data/worldCities";
 
 export default function UserProfile() {
   const [, navigate] = useLocation();
@@ -109,10 +110,23 @@ export default function UserProfile() {
         console.error("Failed to fetch destinations list", err);
       }
 
-      // Merge with offline WORLD_CITIES
+      const dbNames = new Set(dbDests.map((d: any) => d.name.toLowerCase()));
+      const localMapped = WORLD_CITIES
+        .filter((c: any) => !dbNames.has(c.name.toLowerCase()))
+        .map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          country: c.country,
+          source: "local" as const
+        }));
+
       const merged = [
-        ...dbDests.map((d: any) => ({ id: d._id, name: d.name })),
-        ...WORLD_CITIES.map((c: any) => ({ id: c.id, name: c.name }))
+        ...dbDests.map((d: any) => ({
+          ...d,
+          id: d._id,
+          source: "db" as const
+        })),
+        ...localMapped
       ];
       setDestinations(merged);
 
@@ -232,14 +246,6 @@ export default function UserProfile() {
     }, 800);
   };
 
-  const handleWishlistClick = (destName: string) => {
-    const dest = destinations.find(d => d.name.toLowerCase() === destName.toLowerCase());
-    if (dest) {
-      navigate(`/destinations/${dest.id}`);
-    } else {
-      navigate(`/destinations`);
-    }
-  };
 
   const toggleInterest = (interest: string) => {
     const current = [...editForm.interests];
@@ -532,18 +538,18 @@ export default function UserProfile() {
               </h3>
               {wishlist.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  {wishlist.map((dest) => (
-                    <Card
-                      key={dest}
-                      className="border border-border shadow-sm p-4 cursor-pointer hover:shadow-md transition-all bg-card hover:bg-muted text-card-foreground"
-                      onClick={() => handleWishlistClick(dest)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold text-foreground">{dest}</p>
-                        <Heart className="w-5 h-5 fill-red-500 text-red-500" />
-                      </div>
-                    </Card>
-                  ))}
+                  {wishlist.map((destName) => {
+                    const matchedDest = destinations.find(
+                      (d) => d.name.toLowerCase() === destName.toLowerCase()
+                    ) || { name: destName };
+                    return (
+                      <DestinationCard
+                        key={destName}
+                        dest={matchedDest}
+                        variant="wishlist"
+                      />
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 border border-dashed border-border rounded-lg mb-6 text-muted-foreground">

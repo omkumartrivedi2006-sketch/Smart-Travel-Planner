@@ -1,7 +1,9 @@
+import mongoose from "mongoose";
 import { Request, Response, NextFunction } from "express";
 import { Destination } from "../models/Destination";
 import { NotFoundError, BadRequestError } from "../utils/errors";
 import { logger } from "../utils/logger";
+import { resolveImageForDestination, queueImageResolution } from "../services/imageService";
 
 /**
  * Get all destinations with search, filters, sorting, and pagination
@@ -93,6 +95,14 @@ export async function getDestinations(
       Destination.countDocuments(queryFilter),
     ]);
 
+    // Progressive image resolution: check if any fetched destinations have empty image fields
+    // Queue background resolution asynchronously so we don't block the API response and respect rate limits
+    destinations.forEach((dest) => {
+      if (!dest.image || dest.image.trim() === "" || dest.images.length === 0) {
+        queueImageResolution(dest._id.toString());
+      }
+    });
+
     const totalPages = Math.ceil(totalCount / limitNum);
 
     res.status(200).json({
@@ -124,10 +134,27 @@ export async function getDestinationById(
 ): Promise<void> {
   try {
     const { id } = req.params;
-    const destination = await Destination.findById(id);
+    let destination;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      destination = await Destination.findById(id);
+    } else {
+      destination = await Destination.findOne({ slug: id.toLowerCase() });
+    }
 
     if (!destination) {
       throw new NotFoundError("Destination not found");
+    }
+
+    // Resolve image synchronously if missing/placeholder
+    if (!destination.image || destination.image.trim() === "" || destination.images.length === 0 || destination.image.startsWith("data:image/svg+xml")) {
+      const resolvedUrl = await resolveImageForDestination(destination._id.toString());
+      if (resolvedUrl) {
+        const updatedDest = await Destination.findById(destination._id);
+        if (updatedDest) {
+          destination = updatedDest;
+        }
+      }
     }
 
     res.status(200).json({
@@ -221,6 +248,45 @@ export async function deleteDestination(
     res.status(200).json({
       status: "success",
       message: "Destination successfully deleted",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update destination images (Public/User endpoint to cache resolved external images)
+ * PUT /api/destinations/:id/update-images
+ */
+export async function updateDestinationImages(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { image, images } = req.body;
+
+    const destination = await Destination.findById(id);
+    if (!destination) {
+      throw new NotFoundError("Destination not found");
+    }
+
+    if (image) {
+      destination.image = image;
+    }
+    if (images && Array.isArray(images) && images.length > 0) {
+      destination.images = images;
+    }
+
+    await destination.save();
+    logger.info(`Destination images successfully cached in DB for: ${destination.name}`);
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        destination,
+      },
     });
   } catch (error) {
     next(error);

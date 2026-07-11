@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { DestinationImage } from "@/components/DestinationImage";
+import { DestinationCard } from "@/components/DestinationCard";
 import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
 interface RecItem {
@@ -286,84 +288,11 @@ export default function AIRecommendations() {
             ) : (
               <div className="space-y-6">
                 {results.map((rec) => (
-                  <Card
+                  <DestinationCard
                     key={rec._id}
-                    className="border-0 shadow-lg overflow-hidden hover:shadow-xl transition-all cursor-pointer bg-card text-card-foreground"
-                    onClick={() => navigate(`/destinations/${rec._id}`)}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
-                      {/* Image */}
-                      <div className="md:col-span-1 h-48 md:h-auto overflow-hidden bg-muted relative">
-                        {rec.image ? (
-                          <img
-                            src={rec.image}
-                            alt={rec.name}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-teal-600 bg-teal-500/10">
-                            <MapPin className="w-12 h-12" />
-                          </div>
-                        )}
-                        <div className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-semibold flex items-center gap-1 text-foreground">
-                          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                          {rec.rating || 4.5}
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="md:col-span-2 p-6 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-start justify-between mb-4 gap-2">
-                            <div>
-                              <h3 className="text-2xl font-bold text-foreground mb-2">{rec.name}</h3>
-                              <p className="text-muted-foreground flex items-center gap-2">
-                                <MapPin className="w-4 h-4 text-teal-600" />
-                                {rec.country} • {rec.category} Category
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <div className="flex items-center gap-1.5 mb-1 justify-end">
-                                <TrendingUp className="w-5 h-5 text-orange-500" />
-                                <span className="text-3xl font-bold text-orange-500">{rec.score}%</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground font-semibold">Match Score</p>
-                            </div>
-                          </div>
-
-                          <div className="bg-muted p-4 rounded-lg mb-4">
-                            <p className="text-sm font-semibold text-foreground/80 mb-1">Why This Destination?</p>
-                            <p className="text-foreground/80 text-sm leading-relaxed">{rec.reason}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                          <Button
-                            className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/destinations/${rec._id}`);
-                            }}
-                          >
-                            View Details
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="flex-1 border-teal-600 text-teal-600 hover:bg-teal-500/10"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/planner?destination=${encodeURIComponent(rec.name)}&budget=${budget}&travelers=2&destinationId=${rec._id}`);
-                            }}
-                          >
-                            Plan Trip
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
+                    dest={rec}
+                    variant="ai"
+                  />
                 ))}
               </div>
             )}

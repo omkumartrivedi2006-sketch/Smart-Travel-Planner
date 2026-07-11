@@ -6,9 +6,11 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { DestinationImage } from "@/components/DestinationImage";
 import { MapView } from "@/components/Map";
 import { useLocationData } from "@/contexts/LocationContext";
 import { LocationNavbarButton } from "@/components/LocationNavbarButton";
+import { resolveDestinationImages } from "@/services/pexelsService";
 
 interface Destination {
   id: string;
@@ -60,7 +62,7 @@ const getWeatherIcon = (cond: string) => {
 export default function DestinationDetails() {
   const [, navigate] = useLocation();
   const params = useParams();
-  const id = params.id;
+  const id = params.id || params.slug;
   const { theme, toggleTheme } = useTheme();
   
   const [destination, setDestination] = useState<Destination | null>(null);
@@ -161,6 +163,24 @@ export default function DestinationDetails() {
         
         const d = destRes.data.destination;
 
+        // Dynamic Pexels API image resolution for details page gallery
+        let finalImages = d.images || [];
+        let finalHero = d.image || "";
+
+        const hasDbImages = finalImages && finalImages.length >= 3 && !finalImages[0].startsWith("data:image/svg+xml");
+
+        if (!hasDbImages) {
+          try {
+            const result = await resolveDestinationImages(d._id, d.name, d.country, d.category, d.image, d.images);
+            if (result.image) {
+              finalHero = result.image;
+              finalImages = result.images;
+            }
+          } catch (pexelsErr) {
+            console.error("Failed to resolve gallery images from Pexels:", pexelsErr);
+          }
+        }
+
         // 2. Fetch Weather details (live cache)
         let weatherList: { day: string; temp: string; icon: string }[] = [];
         try {
@@ -224,7 +244,7 @@ export default function DestinationDetails() {
           travelTips: d.travelTips || "Carry local currency and maps.",
           latitude: d.latitude,
           longitude: d.longitude,
-          images: d.images && d.images.length > 0 ? d.images : [d.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e"],
+          images: finalImages && finalImages.length > 0 ? finalImages : [finalHero || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e"],
           rating: d.rating || 4.5,
           reviewsCount: Math.floor(Math.random() * 1500) + 200,
           weather: weatherList,
@@ -254,11 +274,10 @@ export default function DestinationDetails() {
 
   if (!destination) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-foreground">
-        <h2 className="text-2xl font-bold text-foreground mb-2">Destination Not Found</h2>
-        <p className="text-muted-foreground mb-6">The destination you are looking for does not exist or has been removed.</p>
-        <Button onClick={() => navigate("/destinations")} className="bg-teal-600 hover:bg-teal-700 text-white">
-          Back to Destinations
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-foreground text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Destination not found.</h1>
+        <Button onClick={() => navigate("/destinations")} className="bg-teal-600 hover:bg-teal-700 text-white mt-4">
+          Return to Browse.
         </Button>
       </div>
     );
@@ -327,28 +346,35 @@ export default function DestinationDetails() {
             <Card className="border border-border shadow-lg overflow-hidden mb-8 bg-card">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2">
                 <div className="md:col-span-2 h-[350px] md:h-[400px]">
-                  <img
+                  <DestinationImage
                     src={destination.images[0]}
                     alt={destination.name}
+                    name={destination.name}
+                    category={destination.category}
+                    id={destination.id}
+                    country={destination.country}
+                    preload={true}
                     className="w-full h-full object-cover rounded-lg"
-                    onError={(e) => {
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                    }}
                   />
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-1 gap-2 h-auto md:h-[400px]">
-                  {(destination.images.slice(1, 3).length > 0 ? destination.images.slice(1, 3) : [
+                <div className={`grid gap-2 h-auto md:h-[400px] ${
+                  destination.images.slice(1, 5).length > 2
+                    ? "grid-cols-2"
+                    : "grid-cols-2 md:grid-cols-1"
+                }`}>
+                  {(destination.images.slice(1, 5).length > 0 ? destination.images.slice(1, 5) : [
                     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
                     "https://images.unsplash.com/photo-1454391304352-2bf4678b1a7a"
                   ].slice(0, 2)).map((imgUrl, idx) => (
-                    <img
+                    <DestinationImage
                       key={idx}
                       src={imgUrl}
                       alt={`${destination.name} gallery ${idx + 1}`}
-                      className="w-full h-[120px] md:h-[196px] object-cover rounded-lg"
-                      onError={(e) => {
-                        e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                      }}
+                      name={destination.name}
+                      category={destination.category}
+                      id={destination.id}
+                      country={destination.country}
+                      className="w-full h-full object-cover rounded-lg"
                     />
                   ))}
                 </div>

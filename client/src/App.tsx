@@ -32,6 +32,7 @@ function Router() {
       <Route path={"/forgot-password"} component={ForgotPassword} />
       <Route path={"/destinations"} component={Destinations} />
       <Route path={"/destinations/:id"} component={DestinationDetails} />
+      <Route path={"/destination/:slug"} component={DestinationDetails} />
       <Route path={"/planner"} component={TripPlanner} />
       <Route path={"/saved-trips"} component={SavedTrips} />
       <Route path={"/trips/:id"} component={TripDetails} />

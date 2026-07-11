@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
-import { WORLD_CITIES, getPopularDestinations, type WorldCity } from "@/data/worldCities";
 import { fuzzySearch, getSuggestions } from "@/lib/fuzzySearch";
 import { useLocationData } from "@/contexts/LocationContext";
 import { LocationNavbarButton } from "@/components/LocationNavbarButton";
+import { DestinationCard } from "@/components/DestinationCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,104 +106,6 @@ function SkeletonCard() {
   );
 }
 
-// ─── Destination Card ─────────────────────────────────────────────────────────
-
-function DestinationCard({
-  dest,
-  onClick,
-  index,
-}: {
-  dest: NormalizedDestination;
-  onClick: () => void;
-  index: number;
-}) {
-  const { location: userLoc } = useLocationData();
-  const [imgError, setImgError] = useState(false);
-
-  const distanceText = useMemo(() => {
-    if (!userLoc || dest.latitude === undefined || dest.longitude === undefined) return null;
-    const dist = calculateDistance(userLoc.latitude, userLoc.longitude, dest.latitude, dest.longitude);
-    return `${Math.round(dist).toLocaleString()} km`;
-  }, [userLoc, dest.latitude, dest.longitude]);
-
-  return (
-    <div
-      onClick={onClick}
-      className="group rounded-xl overflow-hidden bg-card text-card-foreground shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-border hover:-translate-y-1"
-      style={{ animationDelay: `${index * 60}ms` }}
-    >
-      <div className="relative h-48 overflow-hidden">
-        <img
-          src={imgError ? "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800" : dest.image}
-          alt={dest.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          onError={() => setImgError(true)}
-        />
-        {/* Category badge */}
-        <div className="absolute top-3 right-3 flex flex-wrap gap-1 justify-end max-w-[60%]">
-          {dest.categories.slice(0, 2).map((cat) => {
-            const cf = CATEGORY_FILTERS.find((c) => c.value === cat);
-            return (
-              <span
-                key={cat}
-                className="bg-background/90 backdrop-blur-sm text-foreground border border-border text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm"
-              >
-                {cf ? `${cf.emoji} ${cf.label}` : cat}
-              </span>
-            );
-          })}
-        </div>
-        {/* Budget badge */}
-        <div className="absolute bottom-3 left-3">
-          <span
-            className={`text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm ${
-              dest.budget === "Budget"
-                ? "bg-emerald-500/90 text-white"
-                : dest.budget === "Mid-range"
-                ? "bg-amber-500/90 text-white"
-                : "bg-purple-500/90 text-white"
-            }`}
-          >
-            {dest.budget}
-          </span>
-        </div>
-      </div>
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-1">
-          <h4 className="text-lg font-bold text-card-foreground group-hover:text-primary transition-colors">
-            {dest.name}
-          </h4>
-          <div className="flex items-center gap-1 shrink-0 ml-2">
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-            <span className="text-sm font-semibold text-card-foreground">{dest.rating.toFixed(1)}</span>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground flex items-center justify-between gap-1 mb-2">
-          <span className="flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 shrink-0 text-primary" />
-            {dest.country}
-          </span>
-          {distanceText && (
-            <span className="text-xs font-semibold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-1.5 py-0.5 rounded shrink-0 animate-in fade-in duration-350">
-              📍 {distanceText}
-            </span>
-          )}
-        </p>
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-4">{dest.description}</p>
-        <Button
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm transition-all duration-200 hover:shadow-md"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-        >
-          View Details
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page Component ──────────────────────────────────────────────────────
 
 export default function Destinations() {
@@ -253,6 +155,7 @@ export default function Destinations() {
           const mapped: NormalizedDestination[] = res.data.destinations.map((d: any) => ({
             id: d._id,
             name: d.name,
+            slug: d.slug || d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
             country: d.country,
             categories: Array.isArray(d.categories) && d.categories.length > 0
               ? d.categories
@@ -268,7 +171,6 @@ export default function Destinations() {
           setDbDestinations(mapped);
         }
       } catch {
-        // DB unavailable — gracefully fall back to local dataset only
         toast.info("Using offline destination data.");
       } finally {
         setIsLoading(false);
@@ -277,25 +179,9 @@ export default function Destinations() {
     loadDestinations();
   }, []);
 
-  // ─── Merged dataset (DB takes priority; local fills gaps) ─────────────────
+  // ─── Merged dataset (Single source of truth: DB) ─────────────────
   const allDestinations = useMemo<NormalizedDestination[]>(() => {
-    const dbNames = new Set(dbDestinations.map((d) => d.name.toLowerCase()));
-
-    const localMapped: NormalizedDestination[] = WORLD_CITIES
-      .filter((c) => !dbNames.has(c.name.toLowerCase()))
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        country: c.country,
-        categories: c.categories,
-        budget: c.budget,
-        rating: c.rating,
-        image: c.image,
-        description: c.description,
-        source: "local" as const,
-      }));
-
-    return [...dbDestinations, ...localMapped];
+    return dbDestinations;
   }, [dbDestinations]);
 
   // ─── Autocomplete suggestions ──────────────────────────────────────────────
@@ -354,19 +240,8 @@ export default function Destinations() {
 
   // ─── Popular destinations for empty state ─────────────────────────────────
   const popularDestinations = useMemo<NormalizedDestination[]>(() => {
-    const pop = getPopularDestinations(8);
-    return pop.map((c) => ({
-      id: c.id,
-      name: c.name,
-      country: c.country,
-      categories: c.categories,
-      budget: c.budget,
-      rating: c.rating,
-      image: c.image,
-      description: c.description,
-      source: "local" as const,
-    }));
-  }, []);
+    return [...dbDestinations].sort((a, b) => b.rating - a.rating).slice(0, 8);
+  }, [dbDestinations]);
 
   // ─── Click-outside to close suggestions ───────────────────────────────────
   useEffect(() => {
@@ -447,18 +322,6 @@ export default function Destinations() {
     setSelectedCats([]);
     setSelectedBudgets([]);
   }, []);
-
-  const navigateToDestination = useCallback(
-    (dest: NormalizedDestination) => {
-      if (dest.source === "db") {
-        navigate(`/destinations/${dest.id}`);
-      } else {
-        // For local destinations not in DB, navigate to a search-friendly URL
-        navigate(`/destinations?search=${encodeURIComponent(dest.name)}`);
-      }
-    },
-    [navigate]
-  );
 
   const hasActiveFilters = selectedCats.length > 0 || selectedBudgets.length > 0 || searchQuery !== "";
   const showEmptyState = !isLoading && filteredDestinations.length === 0;
@@ -788,7 +651,7 @@ export default function Destinations() {
                     <DestinationCard
                       key={dest.id}
                       dest={dest}
-                      onClick={() => navigateToDestination(dest)}
+                      variant="search"
                       index={i}
                     />
                   ))}
@@ -808,7 +671,7 @@ export default function Destinations() {
                   <DestinationCard
                     key={dest.id}
                     dest={dest}
-                    onClick={() => navigateToDestination(dest)}
+                    variant="search"
                     index={i}
                   />
                 ))}

@@ -5,6 +5,7 @@ import {
   createDestination,
   updateDestination,
   deleteDestination,
+  updateDestinationImages,
 } from "../controllers/destinationController";
 import { protect, restrictTo } from "../middleware/authMiddleware";
 import { validate } from "../middleware/validationMiddleware";
@@ -15,9 +16,10 @@ import {
 
 const router = Router();
 
-// Public: list and detail view
+// Public: list and detail view and image updating
 router.get("/", getDestinations);
 router.get("/:id", getDestinationById);
+router.put("/:id/update-images", updateDestinationImages);
 
 // Protected (Admin only): create, update, and delete actions
 router.post("/", protect, restrictTo("admin"), validate(createDestinationSchema), createDestination);

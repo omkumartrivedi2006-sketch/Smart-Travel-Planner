@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { useTheme } from "@/contexts/ThemeContext";
+import { DestinationImage } from "@/components/DestinationImage";
 import { useLocationData } from "@/contexts/LocationContext";
 import { LocationNavbarButton } from "@/components/LocationNavbarButton";
 
@@ -348,13 +349,12 @@ export default function TripPlanner() {
                                 isSelected ? "bg-teal-500/10 text-teal-800 dark:text-teal-400 font-medium" : "hover:bg-muted"
                               }`}
                             >
-                              <img
-                                src={item.image || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e"}
+                              <DestinationImage
+                                src={item.image}
                                 alt={item.name}
+                                name={item.name}
+                                category={item.category || "City"}
                                 className="w-10 h-10 object-cover rounded-lg shrink-0 border border-border"
-                                onError={(e) => {
-                                  e.currentTarget.src = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800";
-                                }}
                               />
                               <div className="flex-1 min-w-0">
                                 <p className="font-bold text-card-foreground text-sm truncate">
