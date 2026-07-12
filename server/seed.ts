@@ -1323,6 +1323,97 @@ const baseDestinations = [
     averageBudget: 9500,
     rating: 4.5,
     shortDescription: "Germany's capital city, famous for art, techno music, and Cold War history."
+  },
+  {
+    name: "Kolkata",
+    city: "Kolkata",
+    state: "West Bengal",
+    country: "India",
+    continent: "Asia",
+    category: "Culture" as const,
+    latitude: 22.5726,
+    longitude: 88.3639,
+    averageBudget: 3000,
+    rating: 4.6,
+    shortDescription: "City of Joy, famous for literary heritage, grand colonial architecture, and Durga Puja festival."
+  },
+  {
+    name: "Vatican City",
+    city: "Vatican City",
+    state: "Vatican State",
+    country: "Vatican City",
+    continent: "Europe",
+    category: "Culture" as const,
+    latitude: 41.9029,
+    longitude: 12.4534,
+    averageBudget: 12000,
+    rating: 4.8,
+    shortDescription: "The heart of the Catholic Church, home to St. Peter's Basilica and the Vatican Museums."
+  },
+  {
+    name: "Osaka",
+    city: "Osaka",
+    state: "Osaka Prefecture",
+    country: "Japan",
+    continent: "Asia",
+    category: "Food" as const,
+    latitude: 34.6937,
+    longitude: 135.5023,
+    averageBudget: 10000,
+    rating: 4.8,
+    shortDescription: "Japan's kitchen, famous for street food like takoyaki, okonomiyaki, and neon-lit Dotonbori."
+  },
+  {
+    name: "Hyderabad",
+    city: "Hyderabad",
+    state: "Telangana",
+    country: "India",
+    continent: "Asia",
+    category: "Food" as const,
+    latitude: 17.3850,
+    longitude: 78.4867,
+    averageBudget: 3500,
+    rating: 4.7,
+    shortDescription: "City of Pearls, world-famous for Hyderabadi Biryani, Haleem, and Nizami cuisine."
+  },
+  {
+    name: "Penang",
+    city: "George Town",
+    state: "Penang",
+    country: "Malaysia",
+    continent: "Asia",
+    category: "Food" as const,
+    latitude: 5.4141,
+    longitude: 100.3288,
+    averageBudget: 5000,
+    rating: 4.7,
+    shortDescription: "Culinary capital of Malaysia, renowned for George Town street food, laksa, and char kway teow."
+  },
+  {
+    name: "Milan",
+    city: "Milan",
+    state: "Lombardy",
+    country: "Italy",
+    continent: "Europe",
+    category: "Shopping" as const,
+    latitude: 45.4642,
+    longitude: 9.1900,
+    averageBudget: 15000,
+    rating: 4.7,
+    shortDescription: "Global fashion capital, famous for high-end designer shopping galleries and Gothic Duomo."
+  },
+  {
+    name: "Istanbul Grand Bazaar",
+    city: "Istanbul",
+    state: "Istanbul",
+    country: "Turkey",
+    continent: "Europe",
+    category: "Shopping" as const,
+    latitude: 41.0108,
+    longitude: 28.9680,
+    averageBudget: 5000,
+    rating: 4.7,
+    shortDescription: "Bustling historical shopping center, the largest covered market in the world with spice stalls."
   }
 ];
 
@@ -1365,6 +1456,24 @@ function expandDestination(base: any) {
       "https://images.unsplash.com/photo-1545205597-3d9d02c29597",
       "https://images.unsplash.com/photo-1581793745862-99fde7fa73d2",
       "https://images.unsplash.com/photo-1589308078059-be1415eab4c3"
+    ];
+  } else if (base.category === "Culture") {
+    defaultImages = [
+      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7",
+      "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3",
+      "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b"
+    ];
+  } else if (base.category === "Food") {
+    defaultImages = [
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38",
+      "https://images.unsplash.com/photo-1565958011703-44f9829ba187"
+    ];
+  } else if (base.category === "Shopping") {
+    defaultImages = [
+      "https://images.unsplash.com/photo-1483985988355-763728e1935b",
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
+      "https://images.unsplash.com/photo-1472851294608-062f824d296e"
     ];
   }
 
@@ -1473,6 +1582,51 @@ function expandDestination(base: any) {
       travelTips: "Keep hydration packs ready, wear sturdy athletic shoes, and purchase travel insurance with adventure coverage.",
       durationRecommendation: "3-4 Days",
       weatherInformation: "Breezy and clean climate. Warm days (20°C - 30°C) and crisp cold nights (10°C - 15°C)."
+    },
+    Culture: {
+      famousFor: "Rich art traditions, local festivals, theater acts, ancient history, and museum tours.",
+      activities: ["Attending Local Festival", "Museum Guided Tour", "Traditional Art Workshop", "Historical Walk", "Theater Performance"],
+      topAttractions: ["Grand Cultural Center", "National Art Museum", "Historical Heritage Site", "Performing Arts Theater"],
+      localCuisine: ["Traditional Festive Rice", "Slow-cooked Claypot Meat", "Sweet Honey Pastries", "Local Herbal Brew"],
+      transportationOptions: ["Public Transit Metro", "Heritage Rickshaw", "Tour Shuttle Bus", "Walking Tour"],
+      nearestAirport: isIndia ? "Netaji Subhash Chandra Bose Airport" : `${regionName} Cultural Airport`,
+      nearestRailwayStation: isIndia ? "Howrah Junction" : `${regionName} Central Terminus`,
+      languagesSpoken: isIndia ? ["English", "Hindi", "Bengali"] : ["English", "Local Language"],
+      currency: isIndia ? "INR (₹)" : "Local Currency",
+      safetyInformation: "Respect local customs, dress modestly when visiting sacred temples, and follow photography guidelines.",
+      travelTips: "Book festival passes early, carry cash for entry fees, and hire authorized guides.",
+      durationRecommendation: "3-5 Days",
+      weatherInformation: "Comfortable and pleasant climate. Temperatures range from 18°C to 28°C."
+    },
+    Food: {
+      famousFor: "Culinary innovations, night markets, food streets, award-winning restaurants, and traditional cuisine.",
+      activities: ["Night Market Food Tour", "Cooking Class with Local Chef", "Street Food Tasting", "Fine Dining Dinner", "Local Spice Market Visit"],
+      topAttractions: ["Famous Food Street", "Historic Spice Market", "Michelin-starred Restaurant Alley", "Local Farmers Market"],
+      localCuisine: ["Steamed Meat Dumplings", "Fragrant Basmati Biryani", "Crispy Rice Pancakes", "Traditional Spiced Tea"],
+      transportationOptions: ["Streetcar", "Tuk-Tuk", "Bicycle Rental", "Walking Tour"],
+      nearestAirport: isIndia ? "Rajiv Gandhi International Airport" : `${regionName} Food Hub Airport`,
+      nearestRailwayStation: isIndia ? "Secunderabad Junction" : `${regionName} Central Station`,
+      languagesSpoken: isIndia ? ["English", "Telugu", "Urdu"] : ["English", "Local Language"],
+      currency: isIndia ? "INR (₹)" : "Local Currency",
+      safetyInformation: "Drink bottled water and choose street stalls that are highly popular with local crowds to ensure freshness.",
+      travelTips: "Carry sanitizers, keep small change ready for street vendors, and bring digestives.",
+      durationRecommendation: "2-4 Days",
+      weatherInformation: "Warm and tropical. Average temperatures hover around 24°C - 34°C."
+    },
+    Shopping: {
+      famousFor: "Bustling traditional bazaars, luxury malls, designer outlets, local handicrafts, and duty-free shopping.",
+      activities: ["Bazaar Bargain Shopping", "Luxury Mall Visit", "Handicrafts Souvenir Hunting", "Fashion District Walk", "Duty-Free Shopping Spree"],
+      topAttractions: ["Traditional Artisan Market", "Mega Luxury Shopping Mall", "Bustling Pedestrian Shopping Street", "Outlet Mall Village"],
+      localCuisine: ["Quick Bites & Snacks", "Cafe Latte & Pastries", "Fresh Fruit Smoothie", "Gourmet Deli Sandwich"],
+      transportationOptions: ["Taxi Cab", "Metro Line", "Shopping Center Shuttle", "Rickshaw"],
+      nearestAirport: isIndia ? "Chhatrapati Shivaji Maharaj Airport" : `${regionName} International Airport`,
+      nearestRailwayStation: isIndia ? "Mumbai Central" : `${regionName} Fashion Terminal`,
+      languagesSpoken: isIndia ? ["English", "Hindi", "Marathi"] : ["English", "Local Language"],
+      currency: isIndia ? "INR (₹)" : "Local Currency",
+      safetyInformation: "Keep your wallets secure in crowded market areas and double check your purchases before leaving.",
+      travelTips: "Bring comfortable walking shoes, carry a reusable shopping bag, and don't hesitate to bargain in local markets.",
+      durationRecommendation: "2-3 Days",
+      weatherInformation: "Breezy and moderate. Temperatures typically range from 20°C to 30°C."
     }
   };
 

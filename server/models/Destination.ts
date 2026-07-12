@@ -7,7 +7,7 @@ export interface IDestination extends Document {
   state: string;
   country: string;
   continent: string;
-  category: "Beach" | "Mountain" | "City" | "Heritage" | "Nature" | "Adventure";
+  category: "Beach" | "Mountain" | "City" | "Heritage" | "Nature" | "Adventure" | "Culture" | "Food" | "Shopping";
   categories: string[];
   shortDescription: string;
   fullDescription: string;
@@ -96,7 +96,7 @@ const DestinationSchema: Schema<IDestination> = new Schema(
     category: {
       type: String,
       required: [true, "Category is required"],
-      enum: ["Beach", "Mountain", "City", "Heritage", "Nature", "Adventure"],
+      enum: ["Beach", "Mountain", "City", "Heritage", "Nature", "Adventure", "Culture", "Food", "Shopping"],
     },
     categories: {
       type: [String],
@@ -245,7 +245,14 @@ const DestinationSchema: Schema<IDestination> = new Schema(
       default: [],
     },
     weather: {
-      type: [Schema.Types.Mixed],
+      type: [
+        {
+          day: { type: String, required: true },
+          temp: { type: String, required: true },
+          condition: { type: String, required: true },
+          icon: { type: String, required: true }
+        }
+      ],
       default: [],
     },
     gallery: {
