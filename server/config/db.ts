@@ -56,8 +56,8 @@ export async function connectDB(): Promise<void> {
   const isAtlas = mongodbUri.startsWith("mongodb+srv://");
   logger.info(`Database Mode: ${isAtlas ? "MongoDB Atlas Cloud" : (mongod ? "In-Memory MongoDB" : "Local MongoDB")} instance`);
 
-  const maxRetries = 5;
-  const retryDelayMs = 5000;
+  const maxRetries = 2;
+  const retryDelayMs = 2000;
   let attempts = 0;
 
   while (attempts < maxRetries) {
@@ -65,14 +65,32 @@ export async function connectDB(): Promise<void> {
     try {
       // Enforce connection timeout options to fail fast if DB is offline
       await mongoose.connect(mongodbUri, {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 3000,
       });
       return; // Connection successful, exit function
     } catch (error: any) {
       logger.error(`Database Connection: Failed on attempt ${attempts}/${maxRetries}. Error: ${error.message}`);
       if (attempts >= maxRetries) {
-        logger.error("FATAL: Failed to establish initial connection to MongoDB after maximum retry attempts.");
-        process.exit(1);
+        if (!mongod) {
+          logger.warn("⚠️ Failed to connect to configured MongoDB URI. Falling back to zero-config in-memory MongoDB so the server remains functional...");
+          try {
+            mongod = await MongoMemoryServer.create();
+            mongodbUri = mongod.getUri();
+            logger.info(`In-memory MongoDB successfully started as fallback at: ${mongodbUri}`);
+            // Reset attempts and try connecting to the local fallback
+            attempts = 0;
+            await mongoose.connect(mongodbUri, {
+              serverSelectionTimeoutMS: 5000,
+            });
+            return;
+          } catch (fallbackErr: any) {
+            logger.error("FATAL: Failed to spin up in-memory MongoDB fallback:", fallbackErr);
+            process.exit(1);
+          }
+        } else {
+          logger.error("FATAL: Failed to establish connection to in-memory MongoDB.");
+          process.exit(1);
+        }
       }
       logger.info(`Database Connection: Retrying in ${retryDelayMs / 1000} seconds...`);
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
