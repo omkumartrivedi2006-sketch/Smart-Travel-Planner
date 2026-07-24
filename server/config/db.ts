@@ -1,9 +1,8 @@
 import mongoose from "mongoose";
 import { logger } from "../utils/logger";
-import { MongoMemoryServer } from "mongodb-memory-server";
 
 let listenersRegistered = false;
-let mongod: MongoMemoryServer | null = null;
+let mongod: any = null;
 
 function registerConnectionListeners() {
   if (listenersRegistered) return;
@@ -35,6 +34,7 @@ export async function connectDB(): Promise<void> {
   if (!mongodbUri || mongodbUri.trim() === "") {
     logger.warn("MONGODB_URI environment variable is missing or empty. Starting zero-config in-memory MongoDB...");
     try {
+      const { MongoMemoryServer } = await import("mongodb-memory-server");
       mongod = await MongoMemoryServer.create();
       mongodbUri = mongod.getUri();
       logger.info(`In-memory MongoDB successfully started at: ${mongodbUri}`);
@@ -74,6 +74,7 @@ export async function connectDB(): Promise<void> {
         if (!mongod) {
           logger.warn("⚠️ Failed to connect to configured MongoDB URI. Falling back to zero-config in-memory MongoDB so the server remains functional...");
           try {
+            const { MongoMemoryServer } = await import("mongodb-memory-server");
             mongod = await MongoMemoryServer.create();
             mongodbUri = mongod.getUri();
             logger.info(`In-memory MongoDB successfully started as fallback at: ${mongodbUri}`);
