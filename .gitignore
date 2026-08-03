@@ -112,4 +112,5 @@ temp/
 client/public/__manus__/version.json
 .project-config.json
 .manus-logs/
+powershell.cmd
 

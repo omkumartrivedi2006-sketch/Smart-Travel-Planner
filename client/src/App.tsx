@@ -21,6 +21,8 @@ import RoutePlanner from "./pages/RoutePlanner";
 import ChatAssistant from "./pages/ChatAssistant";
 import UserProfile from "./pages/UserProfile";
 import AdminDashboard from "./pages/AdminDashboard";
+import HelpCenter from "./pages/HelpCenter";
+import ContactUs from "./pages/ContactUs";
 import ChatWidget from "./components/ChatWidget";
 
 const base = import.meta.env.BASE_URL ? import.meta.env.BASE_URL.replace(/\/$/, "") : "";
@@ -45,6 +47,8 @@ function RouterRoutes() {
       <Route path={"/chat-assistant"} component={ChatAssistant} />
       <Route path={"/profile"} component={UserProfile} />
       <Route path={"/admin"} component={AdminDashboard} />
+      <Route path={"/help-center"} component={HelpCenter} />
+      <Route path={"/contact-us"} component={ContactUs} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

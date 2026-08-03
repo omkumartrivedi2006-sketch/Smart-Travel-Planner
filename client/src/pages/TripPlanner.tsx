@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { ChevronRight, Check, Sun, Moon } from "lucide-react";
+import { ChevronRight, Check, Sun, Moon, MapPin, Sparkles, Info } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
@@ -30,6 +30,82 @@ export default function TripPlanner() {
   const [accommodation, setAccommodation] = useState("Hotel");
   const [destinationsList, setDestinationsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasManuallyEditedBudget, setHasManuallyEditedBudget] = useState(false);
+
+  // Helper to find currently selected destination object
+  const selectedDestObj = useMemo(() => {
+    if (!destinationsList || destinationsList.length === 0) return null;
+    if (destinationId) {
+      const found = destinationsList.find((d) => d._id === destinationId || d.id === destinationId);
+      if (found) return found;
+    }
+    if (destination) {
+      const q = destination.trim().toLowerCase();
+      return destinationsList.find(
+        (d) => d.name.toLowerCase() === q || d.country.toLowerCase() === q
+      ) || destinationsList.find(
+        (d) => d.name.toLowerCase().includes(q) || d.country.toLowerCase().includes(q)
+      );
+    }
+    return null;
+  }, [destinationId, destination, destinationsList]);
+
+  // Trip duration in days
+  const tripDurationDays = useMemo(() => {
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (end >= start) {
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(1, diffDays + 1);
+      }
+    }
+    return 3; // Default 3 days assumption
+  }, [startDate, endDate]);
+
+  const travelerCountNum = useMemo(() => {
+    const num = Number(travelers);
+    return isNaN(num) || num <= 0 ? 2 : num;
+  }, [travelers]);
+
+  // Calculate dynamic destination-specific budget options
+  const dynamicBudgetTiers = useMemo(() => {
+    let dailyBaseCost = 4000;
+    if (selectedDestObj) {
+      const destCost = selectedDestObj.averageBudget || selectedDestObj.averageCost || selectedDestObj.budget;
+      if (destCost && typeof destCost === "number" && destCost > 0) {
+        dailyBaseCost = destCost;
+      }
+      
+      // Scale if destination is outside India
+      if (selectedDestObj.country && selectedDestObj.country.toLowerCase() !== "india") {
+        dailyBaseCost = Math.max(dailyBaseCost, 12000);
+      }
+    }
+
+    // Group size factor
+    const groupFactor = 1 + (travelerCountNum - 1) * 0.7;
+    const baseTotalCost = dailyBaseCost * tripDurationDays * groupFactor;
+
+    const budgetVal = Math.max(2000, Math.round((baseTotalCost * 0.55) / 500) * 500);
+    const midVal = Math.max(5000, Math.round(baseTotalCost / 500) * 500);
+    const premiumVal = Math.max(12000, Math.round((baseTotalCost * 2.2) / 500) * 500);
+
+    return [
+      { label: "Budget", amount: budgetVal, desc: "Economy stay & shared transport" },
+      { label: "Mid-range", amount: midVal, desc: "Comfort hotels & private travel" },
+      { label: "Premium", amount: premiumVal, desc: "Luxury resorts & exclusive experiences" },
+    ];
+  }, [selectedDestObj, tripDurationDays, travelerCountNum]);
+
+  // Auto-set budget when destination or tier changes unless user edited manually
+  useEffect(() => {
+    if (!hasManuallyEditedBudget && dynamicBudgetTiers.length > 0) {
+      const selectedTier = dynamicBudgetTiers.find((t) => t.label === budgetLevel) || dynamicBudgetTiers[1];
+      setBudget(selectedTier.amount.toString());
+    }
+  }, [dynamicBudgetTiers, budgetLevel, hasManuallyEditedBudget]);
 
   // Auto-suggestion state
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -441,37 +517,73 @@ export default function TripPlanner() {
                   <h2 className="text-2xl font-bold text-card-foreground mb-2">Budget</h2>
                   <p className="text-muted-foreground mb-4">What's your total budget?</p>
                 </div>
-                <Input
-                  type="number"
-                  placeholder="Enter budget amount"
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                />
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { label: "Budget", def: "3000" },
-                    { label: "Mid-range", def: "7500" },
-                    { label: "Premium", def: "15000" },
-                  ].map((tier) => {
-                    const isSelected = budgetLevel === tier.label;
-                    return (
-                      <Card
-                        key={tier.label}
-                        className={`border shadow-md p-4 cursor-pointer text-center transition-all ${
-                          isSelected
-                            ? "border-teal-500 bg-teal-500/10"
-                            : "border-border hover:border-muted-foreground/40 hover:shadow-lg bg-card"
-                        }`}
-                        onClick={() => {
-                          setBudgetLevel(tier.label);
-                          setBudget(tier.def);
-                        }}
-                      >
-                        <p className="font-semibold text-card-foreground">{tier.label}</p>
-                        <p className="text-xs text-muted-foreground mt-1">₹{tier.def}</p>
-                      </Card>
-                    );
-                  })}
+
+                {/* Dynamic Destination Budget Helper Badge */}
+                {selectedDestObj ? (
+                  <div className="p-3.5 rounded-xl bg-teal-500/10 border border-teal-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs sm:text-sm gap-2">
+                    <div className="flex items-center gap-2 text-teal-900 dark:text-teal-200 font-medium">
+                      <MapPin className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                      <span>
+                        Estimated for <strong>{selectedDestObj.name}, {selectedDestObj.country}</strong> ({tripDurationDays} day{tripDurationDays > 1 ? "s" : ""}, {travelerCountNum} traveler{travelerCountNum > 1 ? "s" : ""})
+                      </span>
+                    </div>
+                    <span className="font-semibold text-teal-700 dark:text-teal-300 bg-teal-500/15 px-2.5 py-1 rounded-md">
+                      Avg ₹{(selectedDestObj.averageBudget || selectedDestObj.averageCost || 4000).toLocaleString("en-IN")}/day
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs sm:text-sm text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Showing estimated default budget presets. Select a specific destination for localized estimates.</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                    Total Budget Amount (₹ INR)
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Enter budget amount"
+                    value={budget}
+                    onChange={(e) => {
+                      setBudget(e.target.value);
+                      setHasManuallyEditedBudget(true);
+                    }}
+                    className="rounded-xl border-border text-base font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                    Destination Budget Tiers
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {dynamicBudgetTiers.map((tier) => {
+                      const isSelected = budgetLevel === tier.label;
+                      return (
+                        <Card
+                          key={tier.label}
+                          className={`border shadow-md p-4 cursor-pointer text-center transition-all ${
+                            isSelected
+                              ? "border-teal-500 bg-teal-500/10 shadow-teal-500/10"
+                              : "border-border hover:border-muted-foreground/40 hover:shadow-lg bg-card"
+                          }`}
+                          onClick={() => {
+                            setBudgetLevel(tier.label);
+                            setBudget(tier.amount.toString());
+                            setHasManuallyEditedBudget(false);
+                          }}
+                        >
+                          <p className="font-bold text-card-foreground text-base mb-1">{tier.label}</p>
+                          <p className="text-lg font-extrabold text-teal-600 dark:text-teal-400">
+                            ₹{tier.amount.toLocaleString("en-IN")}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1.5">{tier.desc}</p>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

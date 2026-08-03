@@ -26,6 +26,7 @@ import { apiFetch, clearSession } from "@/lib/api";
 import { Logo } from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
 import { LocationNavbarButton } from "@/components/LocationNavbarButton";
+import { Footer } from "@/components/Footer";
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -385,47 +386,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h5 className="font-bold mb-4 text-slate-200">Features</h5>
-              <ul className="space-y-2 text-sm text-slate-400 font-medium">
-                <li><a href="#" onClick={() => navigate("/destinations")} className="hover:text-white">Destinations</a></li>
-                <li><a href="#" onClick={() => navigate("/planner")} className="hover:text-white">Trip Planner</a></li>
-                <li><a href="#" onClick={() => navigate("/ai-recommendations")} className="hover:text-white">AI Recommendations</a></li>
-              </ul>
-            </div>
-            <div>
-              <h5 className="font-bold mb-4 text-slate-200">Tools</h5>
-              <ul className="space-y-2 text-sm text-slate-400 font-medium">
-                <li><a href="#" onClick={() => navigate("/budget-calculator")} className="hover:text-white">Budget Calculator</a></li>
-                <li><a href="#" onClick={() => navigate("/weather-forecast")} className="hover:text-white">Weather Forecast</a></li>
-                <li><a href="#" onClick={() => navigate("/route-planner")} className="hover:text-white">Route Planner</a></li>
-              </ul>
-            </div>
-            <div>
-              <h5 className="font-bold mb-4 text-slate-200">Account</h5>
-              <ul className="space-y-2 text-sm text-slate-400 font-medium">
-                <li><a href="#" onClick={() => navigate("/login")} className="hover:text-white">Login</a></li>
-                <li><a href="#" onClick={() => navigate("/register")} className="hover:text-white">Sign Up</a></li>
-                <li><a href="#" onClick={() => navigate("/profile")} className="hover:text-white">Profile</a></li>
-              </ul>
-            </div>
-            <div>
-              <h5 className="font-bold mb-4 text-slate-200">Support</h5>
-              <ul className="space-y-2 text-sm text-slate-400 font-medium">
-                <li><a href="#" className="hover:text-white">Help Center</a></li>
-                <li><a href="#" className="hover:text-white">Contact Us</a></li>
-                <li><a href="#" onClick={() => navigate("/chat-assistant")} className="hover:text-white">Chat Support</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-slate-800 pt-8 text-center text-sm text-slate-500 font-semibold">
-            <p>&copy; 2026 Smart Travel Planner. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
