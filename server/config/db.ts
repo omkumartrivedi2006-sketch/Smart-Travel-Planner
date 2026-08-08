@@ -44,6 +44,11 @@ export async function connectDB(): Promise<void> {
     }
   }
 
+  if (!mongodbUri) {
+    logger.error("FATAL: MONGODB_URI could not be initialized.");
+    process.exit(1);
+  }
+
   if (!mongodbUri.startsWith("mongodb://") && !mongodbUri.startsWith("mongodb+srv://")) {
     logger.error(`FATAL: Database initialization failed. MONGODB_URI must start with 'mongodb://' or 'mongodb+srv://'. Got: ${mongodbUri}`);
     process.exit(1);
@@ -75,12 +80,11 @@ export async function connectDB(): Promise<void> {
           logger.warn("⚠️ Failed to connect to configured MongoDB URI. Falling back to zero-config in-memory MongoDB so the server remains functional...");
           try {
             const { MongoMemoryServer } = await import("mongodb-memory-server");
-            mongod = await MongoMemoryServer.create();
-            mongodbUri = mongod.getUri();
-            logger.info(`In-memory MongoDB successfully started as fallback at: ${mongodbUri}`);
+            const fallbackUri: string = mongod.getUri();
+            logger.info(`In-memory MongoDB successfully started as fallback at: ${fallbackUri}`);
             // Reset attempts and try connecting to the local fallback
             attempts = 0;
-            await mongoose.connect(mongodbUri, {
+            await mongoose.connect(fallbackUri, {
               serverSelectionTimeoutMS: 5000,
             });
             return;
