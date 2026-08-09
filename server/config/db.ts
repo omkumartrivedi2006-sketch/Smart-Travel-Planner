@@ -80,6 +80,7 @@ export async function connectDB(): Promise<void> {
           logger.warn("⚠️ Failed to connect to configured MongoDB URI. Falling back to zero-config in-memory MongoDB so the server remains functional...");
           try {
             const { MongoMemoryServer } = await import("mongodb-memory-server");
+            mongod = await MongoMemoryServer.create();
             const fallbackUri: string = mongod.getUri();
             logger.info(`In-memory MongoDB successfully started as fallback at: ${fallbackUri}`);
             // Reset attempts and try connecting to the local fallback
