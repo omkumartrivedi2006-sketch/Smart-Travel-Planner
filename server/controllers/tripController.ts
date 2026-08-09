@@ -8,6 +8,43 @@ import { NotFoundError, ForbiddenError, BadRequestError } from "../utils/errors"
 import { logger } from "../utils/logger";
 import axios from "axios";
 
+function buildFallbackItinerary(destination: any, durationDays: number): any[] {
+  const popularPlaces = destination.popularPlaces || [];
+  const activities = destination.activities || [];
+  const itinerary = [];
+
+  for (let day = 1; day <= durationDays; day++) {
+    const place1 = popularPlaces.length > 0 ? popularPlaces[(day * 2 - 2) % popularPlaces.length] : `${destination.name} City Center`;
+    const place2 = popularPlaces.length > 1 ? popularPlaces[(day * 2 - 1) % popularPlaces.length] : "Local Heritage Spot";
+    const activityName = activities.length > 0 ? activities[(day - 1) % activities.length] : "Sightseeing & Shopping";
+
+    itinerary.push({
+      day,
+      activities: [
+        {
+          time: "09:00 AM",
+          activity: `Explore ${place1}`,
+          description: `Morning sightseeing and landmark visit at ${place1} in ${destination.name}.`,
+          cost: 0,
+        },
+        {
+          time: "02:00 PM",
+          activity: activityName,
+          description: `Afternoon experience: ${activityName}. Enjoy local culture and scenic views.`,
+          cost: 500,
+        },
+        {
+          time: "06:30 PM",
+          activity: `Evening Walk around ${place2}`,
+          description: `Stroll through ${place2}, try local delicacies and relax.`,
+          cost: 300,
+        },
+      ],
+    });
+  }
+  return itinerary;
+}
+
 /**
  * Generate a structured daily itinerary based on destination activities and places using Groq API
  */
@@ -20,7 +57,8 @@ async function generateItinerary(params: {
   const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey || apiKey.trim() === "" || apiKey.trim() === "YOUR_GROQ_KEY" || apiKey.trim() === "YourGroqAPIKeyHere") {
-    throw new BadRequestError("Groq API key is not configured in environment variables. Cannot generate AI itinerary.");
+    logger.warn("GROQ_API_KEY is missing or unconfigured. Using built-in structured itinerary generator.");
+    return buildFallbackItinerary(destination, durationDays);
   }
 
   const popularPlaces = destination.popularPlaces || [];
@@ -78,11 +116,10 @@ Include local activities like: ${activities.join(", ")}.`;
     }
 
     const parsedData = JSON.parse(responseContent);
-    return parsedData.itinerary || [];
+    return parsedData.itinerary || buildFallbackItinerary(destination, durationDays);
   } catch (error: any) {
-    logger.error("Failed to generate AI itinerary via Groq:", error.message || error);
-    // Return a basic fallback structured itinerary instead of crashing, but let it be a clean live API fallback
-    throw new Error(`AI Itinerary generation failed: ${error.message || error}`);
+    logger.error("Failed to generate AI itinerary via Groq. Using fallback generator:", error.message || error);
+    return buildFallbackItinerary(destination, durationDays);
   }
 }
 
